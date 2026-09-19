@@ -2,6 +2,7 @@ import { get, list } from '@vercel/blob';
 import { roundConfig, submissionPrefix } from '../lib/round-config.js';
 import { results } from '../lib/results.js';
 import { seasonState } from '../lib/season-state.js';
+import { resolveRoundWinners } from '../lib/round-winner.js';
 
 function blankStats(){
   return {
@@ -92,6 +93,7 @@ export default async function handler(req,res){
       const s = latest.get(name);
       const stats = blankStats();
       let allFiveCorrect = roundComplete && Boolean(s);
+      const matchScores = [];
 
       if(s){
         for(const game of completedGames){
@@ -100,11 +102,14 @@ export default async function handler(req,res){
           const fixture = roundConfig.fixtures.find(f=>f.game===game);
           if(!actual || !pick || !fixture){
             allFiveCorrect = false;
+            matchScores.push(0);
             continue;
           }
 
           stats.predictionsMade += 1;
-          stats.basePoints += matchPoints(pick,actual);
+          const points = matchPoints(pick,actual);
+          stats.basePoints += points;
+          matchScores.push(points);
 
           const correct = pick.winner === actual.winner;
           if(correct){
@@ -122,27 +127,28 @@ export default async function handler(req,res){
         allFiveCorrect = false;
       }
 
-      // +5 stays in Base Points: it is the bonus for predicting all five winners correctly.
       if(allFiveCorrect) stats.basePoints += 5;
       stats.totalPoints = stats.basePoints;
 
-      roundRows.push({name,...stats,hasSubmission:Boolean(s)});
+      roundRows.push({
+        name,
+        ...stats,
+        hasSubmission:Boolean(s),
+        matchScores:matchScores.slice().sort((a,b)=>b-a)
+      });
     }
 
     let roundWinnerStatus = 'pending';
     let roundWinners = [];
     if(roundComplete){
-      const max = Math.max(...roundRows.map(x=>x.basePoints));
-      roundWinners = roundRows.filter(x=>x.basePoints===max).map(x=>x.name);
-      if(roundWinners.length===1){
-        const winner = roundRows.find(x=>x.name===roundWinners[0]);
+      const winners = resolveRoundWinners(roundRows);
+      roundWinners = winners.map(x=>x.name);
+      for(const winner of winners){
         winner.roundsWon = 1;
         winner.bonusPoints = 10;
         winner.totalPoints = winner.basePoints + winner.bonusPoints;
-        roundWinnerStatus = 'awarded';
-      }else{
-        roundWinnerStatus = 'tie-needs-rule';
       }
+      roundWinnerStatus = winners.length === 1 ? 'awarded' : 'joint-winners';
     }
 
     const overallPlayers = roundRows.map(roundRow=>{
@@ -152,7 +158,7 @@ export default async function handler(req,res){
     });
 
     const latestCompletedRound = roundComplete
-      ? {round:roundConfig.round,players:roundRows.map(({hasSubmission,...p})=>p)}
+      ? {round:roundConfig.round,players:roundRows.map(({hasSubmission,matchScores,...p})=>p)}
       : seasonState.latestCompletedRound;
 
     res.setHeader('Cache-Control','no-store');
