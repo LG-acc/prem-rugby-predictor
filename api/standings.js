@@ -1,7 +1,7 @@
 import { get, list } from '@vercel/blob';
 import { roundConfig, submissionPrefix } from '../lib/round-config.js';
 import { results } from '../lib/results.js';
-import { seasonState } from '../lib/season-state.js';
+import { archiveRounds } from '../lib/archive-rounds.js';
 import { resolveRoundWinners } from '../lib/round-winner.js';
 
 function blankStats(){
@@ -64,9 +64,43 @@ function addStats(a,b){
   return out;
 }
 
+function archivedRoundsForSeason(){
+  const rounds = archiveRounds.filter(r => r.season === roundConfig.season);
+  const seen = new Set();
+  for(const round of rounds){
+    if(seen.has(round.round)) throw new Error(`Duplicate archived round ${round.round}`);
+    seen.add(round.round);
+    if(!round.standings || typeof round.standings !== 'object'){
+      throw new Error(`Archived round ${round.round} is missing its standings snapshot`);
+    }
+  }
+  return rounds;
+}
+
+function archivedTotals(rounds,name){
+  let total = blankStats();
+  for(const round of rounds){
+    total = addStats(total, round.standings?.[name] || blankStats());
+  }
+  return total;
+}
+
+function latestArchivedRound(rounds){
+  if(!rounds.length) return null;
+  const latest = [...rounds].sort((a,b)=>b.round-a.round)[0];
+  return {
+    round:latest.round,
+    players:roundConfig.players.map(name=>({name,...addStats(blankStats(),latest.standings?.[name] || blankStats())}))
+  };
+}
+
 export default async function handler(req,res){
   if(req.method!=='GET') return res.status(405).json({error:'Method not allowed'});
   try{
+    const archived = archivedRoundsForSeason();
+    const archivedRoundNumbers = new Set(archived.map(r=>r.round));
+    const currentAlreadyArchived = archivedRoundNumbers.has(roundConfig.round);
+
     const deadline = new Date(roundConfig.firstKickoff);
     const latest = new Map();
     let cursor;
@@ -151,15 +185,16 @@ export default async function handler(req,res){
       roundWinnerStatus = winners.length === 1 ? 'awarded' : 'joint-winners';
     }
 
-    const overallPlayers = roundRows.map(roundRow=>{
-      const prior = seasonState.players?.[roundRow.name] || blankStats();
-      const combined = addStats(prior,roundRow);
-      return {name:roundRow.name,...combined};
+    const overallPlayers = roundConfig.players.map(name=>{
+      const prior = archivedTotals(archived,name);
+      const current = roundRows.find(r=>r.name===name) || blankStats();
+      const combined = currentAlreadyArchived ? prior : addStats(prior,current);
+      return {name,...combined};
     });
 
-    const latestCompletedRound = roundComplete
+    const latestCompletedRound = roundComplete && !currentAlreadyArchived
       ? {round:roundConfig.round,players:roundRows.map(({hasSubmission,matchScores,...p})=>p)}
-      : seasonState.latestCompletedRound;
+      : latestArchivedRound(archived);
 
     res.setHeader('Cache-Control','no-store');
     return res.status(200).json({
@@ -171,7 +206,9 @@ export default async function handler(req,res){
       roundWinners,
       players:overallPlayers,
       currentRoundPlayers:roundRows,
-      latestCompletedRound
+      latestCompletedRound,
+      archivedRounds:archived.map(r=>r.round).sort((a,b)=>a-b),
+      currentAlreadyArchived
     });
   }catch(error){
     console.error('Standings API error',error);
