@@ -37,27 +37,61 @@ function marginDisplay(pick){
   if(!pick || !pick.winner || pick.winner==='Draw') return '';
   return esc(pick.margin);
 }
+function previewActual(fixture){
+  const diff=Number(fixture.homeScore)-Number(fixture.awayScore);
+  return {winner:diff===0?'Draw':diff>0?fixture.home:fixture.away,margin:Math.abs(diff)};
+}
+function previewMatchPoints(pick,fixture){
+  const actual=previewActual(fixture);
+  if(!pick || pick.winner!==actual.winner) return 0;
+  if(actual.winner==='Draw') return 25;
+  const err=Math.abs(Number(pick.margin)-actual.margin);
+  if(err===0) return 25;
+  return Math.max(10,20-err);
+}
 function makePreviewData(data){
-  const margins=[3,5,7,10,12,14];
-  const demoPoints=[25,18,0,16,10,19];
-  const fixtures=(data.fixtures||[]).map((f,i)=>i===0?{...f,completed:true,homeScore:27,awayScore:20}:{...f,completed:false,homeScore:null,awayScore:null});
-  const predictions=(data.players||[]).map((name,pi)=>({
-    player:name,
-    submitted:true,
-    picks:fixtures.map((f,fi)=>{
-      const mode=(pi+fi)%3;
-      const winner=mode===0?f.home:mode===1?f.away:'Draw';
-      return {game:f.game,winner,margin:winner==='Draw'?null:margins[(pi+fi)%margins.length],points:fi===0?demoPoints[pi%demoPoints.length]:null};
-    })
+  const sampleScores=[[27,20],[18,24],[31,26],[20,28],[22,19]];
+  const fixtures=(data.fixtures||[]).map((f,i)=>({
+    ...f,
+    completed:true,
+    homeScore:sampleScores[i]?.[0]??24,
+    awayScore:sampleScores[i]?.[1]??20
   }));
-  return {...data,locked:false,preview:true,fixtures,predictions,submittedCount:(data.players||[]).length,bonuses:[{player:(data.players||[])[0]||'Luke',type:'All 5 winners correct',points:5},{player:(data.players||[])[2]||'Steve',type:'Round winner',points:10}],roundWinnerStatus:'awarded'};
+  const H=i=>fixtures[i]?.home;
+  const A=i=>fixtures[i]?.away;
+  const presets={
+    Luke:[[H(0),7],[A(1),6],[H(2),5],[A(3),8],[H(4),3]],
+    Jo:[[H(0),6],[A(1),8],[H(2),2],[A(3),9],[H(4),5]],
+    Steve:[[H(0),7],[A(1),6],[A(2),4],[A(3),10],[H(4),3]],
+    Deb:[[A(0),4],[A(1),6],[H(2),6],[H(3),4],[H(4),3]],
+    Cas:[[H(0),12],[H(1),3],[H(2),5],[A(3),8],[A(4),2]],
+    Ash:[['Draw',null],[A(1),10],[H(2),10],['Draw',null],[H(4),1]]
+  };
+  const predictions=(data.players||[]).map((name,pi)=>{
+    const chosen=presets[name]||fixtures.map((f,fi)=>[fi%2===0?f.home:f.away,5+pi+fi]);
+    const picks=fixtures.map((f,fi)=>{
+      const [winner,margin]=chosen[fi]||[f.home,5];
+      const pick={game:f.game,winner,margin};
+      return {...pick,points:previewMatchPoints(pick,f)};
+    });
+    const allFiveCorrect=picks.every((p,fi)=>p.winner===previewActual(fixtures[fi]).winner);
+    const matchTotal=picks.reduce((sum,p)=>sum+p.points,0);
+    const allFiveBonus=allFiveCorrect?5:0;
+    return {player:name,submitted:true,picks,matchTotal,allFiveBonus,basePoints:matchTotal+allFiveBonus};
+  });
+  const maxBase=Math.max(...predictions.map(p=>p.basePoints));
+  const winners=predictions.filter(p=>p.basePoints===maxBase);
+  const bonuses=[];
+  predictions.forEach(p=>{if(p.allFiveBonus) bonuses.push({player:p.player,type:'All 5 winners correct',points:5});});
+  if(winners.length===1) bonuses.push({player:winners[0].player,type:'Round winner',points:10});
+  return {...data,locked:false,preview:true,fixtures,predictions,submittedCount:(data.players||[]).length,bonuses,roundWinnerStatus:winners.length===1?'awarded':'tie-needs-rule'};
 }
 function render(data){
  const status=document.getElementById('status');
  const games=document.getElementById('games');
  document.getElementById('subtitle').textContent=`Round ${data.round} predictions`;
  if(data.preview){
-   status.innerHTML=`<strong>Layout preview only</strong><br>All predictions, points, scores and bonuses shown below are sample data. Real predictions remain locked until ${esc(data.revealAtDisplay)}.<br><a class="preview-btn" href="/predictions.html">Exit preview</a>`;
+   status.innerHTML=`<strong>Layout preview only</strong><br>All predictions, points, scores and bonuses shown below are sample data, but the scoring is calculated using the real league rules. Real predictions remain locked until ${esc(data.revealAtDisplay)}.<br><a class="preview-btn" href="/predictions.html">Exit preview</a>`;
  }else{
    status.textContent=`Round ${data.round} predictions are now visible. ${data.submittedCount} recognised on-time entr${data.submittedCount===1?'y':'ies'} received.`;
  }
