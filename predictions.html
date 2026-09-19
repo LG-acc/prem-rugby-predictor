@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>PREM Predictor – Predictions</title>
 <style>
-body{font-family:Arial,Helvetica,sans-serif;background:#f4f6f8;color:#213547;margin:0;padding:24px}.wrap{max-width:1000px;margin:auto}h1{text-align:center;color:#0f355e;margin-bottom:6px}.sub{text-align:center;color:#667085;margin:0 0 22px}.status{background:#fff;border:1px solid #e3e7ec;border-radius:14px;box-shadow:0 2px 8px rgba(16,24,40,.06);padding:20px;text-align:center;margin-bottom:18px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px}.card{background:#fff;border:1px solid #e3e7ec;border-radius:14px;box-shadow:0 2px 8px rgba(16,24,40,.06);padding:18px}.card h2{margin:0 0 12px;color:#0f355e}.pick{padding:10px 0;border-top:1px solid #edf0f3}.pick:first-of-type{border-top:0}.game{font-size:12px;color:#667085;font-weight:700}.choice{font-weight:700;margin-top:3px}.nav{text-align:center;margin-top:20px}.nav a{display:inline-block;text-decoration:none;background:#1469c9;color:#fff;padding:10px 14px;border-radius:9px;font-weight:700;margin:4px}@media(max-width:640px){body{padding:14px}}
+body{font-family:Arial,Helvetica,sans-serif;background:#f4f6f8;color:#213547;margin:0;padding:24px}.wrap{max-width:1200px;margin:auto}h1{text-align:center;color:#0f355e;margin-bottom:6px}.sub{text-align:center;color:#667085;margin:0 0 22px}.status{background:#fff;border:1px solid #e3e7ec;border-radius:14px;box-shadow:0 2px 8px rgba(16,24,40,.06);padding:18px;text-align:center;margin-bottom:22px}.fixture-card{background:#fff;border:1px solid #e3e7ec;border-radius:14px;box-shadow:0 2px 8px rgba(16,24,40,.06);overflow:hidden;margin-bottom:22px}.fixture-head{background:#0f355e;color:#fff;padding:16px 18px;text-align:center}.fixture-title{display:flex;align-items:center;justify-content:center;gap:10px;font-size:20px;font-weight:800;flex-wrap:wrap}.fixture-title img,.pick-team img{width:28px;height:28px;object-fit:contain}.fixture-meta{margin-top:6px;font-size:12px;color:#dbe7f3}.result{font-weight:900}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{padding:11px 10px;border-bottom:1px solid #edf0f3;text-align:center}th{background:#eef3f8;color:#294968;font-size:12px}td{font-size:13px}.player{text-align:left;font-weight:800}.pick-team{display:inline-flex;align-items:center;justify-content:center;gap:7px;font-weight:700;min-height:28px}.points{font-weight:900}.blank{color:#98a2b3}.bonus-section{margin-top:30px}.bonus-section h2{color:#0f355e;margin:0 0 12px}.bonus-card{background:#fff;border:1px solid #e3e7ec;border-radius:14px;box-shadow:0 2px 8px rgba(16,24,40,.06);overflow:hidden}.bonus-card th{background:#0f355e;color:#fff}.empty{padding:22px;text-align:center;color:#667085}.nav{text-align:center;margin-top:22px}.nav a{display:inline-block;text-decoration:none;background:#1469c9;color:#fff;padding:9px 13px;border-radius:8px;font-weight:700;margin:4px}@media(max-width:700px){body{padding:12px}.fixture-title{font-size:17px}th,td{padding:9px 6px;font-size:11px}.fixture-title img,.pick-team img{width:24px;height:24px}}
 </style>
 </head>
 <body>
@@ -13,23 +13,65 @@ body{font-family:Arial,Helvetica,sans-serif;background:#f4f6f8;color:#213547;mar
 <h1>PREM Predictor 2026/27</h1>
 <p class="sub" id="subtitle">Predictions</p>
 <div class="status" id="status">Checking predictions…</div>
-<div class="grid" id="grid"></div>
-<div class="nav"><a href="/">Make predictions</a><a href="/leaderboard.html">View leaderboard</a></div>
+<div id="games"></div>
+<section class="bonus-section" id="bonusSection" style="display:none">
+  <h2>Bonus Points</h2>
+  <div class="bonus-card" id="bonusCard"></div>
+</section>
+<div class="nav"><a href="/">Make predictions</a><a href="/leaderboard.html">View leaderboard</a><a href="/archive.html">Past rounds</a></div>
 </main>
 <script>
+function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
+function splitKickoff(k){
+  const parts=String(k||'').split(' – ');
+  return {date:parts[0]||'',time:parts[1]||''};
+}
+function badge(src,name){return src?`<img src="${esc(src)}" alt="${esc(name)} badge">`:''}
+function pickDisplay(pick,fixture){
+  if(!pick || !pick.winner) return '<span class="blank"></span>';
+  if(pick.winner==='Draw') return '<span class="pick-team">Draw</span>';
+  const src=pick.winner===fixture.home?fixture.homeBadge:pick.winner===fixture.away?fixture.awayBadge:'';
+  return `<span class="pick-team">${badge(src,pick.winner)}${esc(pick.winner)}</span>`;
+}
+function marginDisplay(pick){
+  if(!pick || !pick.winner || pick.winner==='Draw') return '';
+  return esc(pick.margin);
+}
 fetch('/api/predictions?ts='+Date.now()).then(r=>r.json()).then(data=>{
  const status=document.getElementById('status');
- const grid=document.getElementById('grid');
+ const games=document.getElementById('games');
  if(data.error){status.textContent=data.error;return;}
  document.getElementById('subtitle').textContent=`Round ${data.round} predictions`;
- const fixtures={}; (data.fixtures||[]).forEach(f=>fixtures[f.game]=`${f.home} v ${f.away}`);
  if(data.locked){
-   status.innerHTML=`Predictions are locked until <strong>${data.revealAtDisplay}</strong>.<br>No player predictions are visible before the first fixture kicks off.`;
+   status.innerHTML=`Predictions are locked until <strong>${esc(data.revealAtDisplay)}</strong>.<br>No player predictions are visible before the first fixture kicks off.`;
    return;
  }
  status.textContent=`Round ${data.round} predictions are now visible. ${data.submittedCount} recognised on-time entr${data.submittedCount===1?'y':'ies'} received.`;
- if(!data.predictions || !data.predictions.length){grid.innerHTML='<section class="card"><p>No valid on-time predictions were submitted.</p></section>';return;}
- grid.innerHTML=data.predictions.map(p=>`<section class="card"><h2>${p.player}</h2>${p.picks.map(x=>`<div class="pick"><div class="game">Game ${x.game}: ${fixtures[x.game]||''}</div><div class="choice">${x.winner==='Draw'?'Draw':x.winner+' by '+x.margin}</div></div>`).join('')}</section>`).join('');
+ const byPlayer={}; (data.predictions||[]).forEach(p=>byPlayer[p.player]=p);
+ games.innerHTML=(data.fixtures||[]).map(f=>{
+   const kt=splitKickoff(f.kickoff);
+   const title=f.completed
+     ? `${badge(f.homeBadge,f.home)}${esc(f.home)} <span class="result">${f.homeScore}–${f.awayScore}</span> ${esc(f.away)}${badge(f.awayBadge,f.away)}`
+     : `${badge(f.homeBadge,f.home)}${esc(f.home)} <span class="result">v</span> ${esc(f.away)}${badge(f.awayBadge,f.away)}`;
+   const rows=(data.players||[]).map(name=>{
+     const p=byPlayer[name];
+     const pick=p?.picks?.find(x=>x.game===f.game)||null;
+     let pts='';
+     if(!p || !p.submitted) pts='0';
+     else if(f.completed) pts=String(pick?.points??0);
+     return `<tr><td class="player">${esc(name)}</td><td>${pickDisplay(pick,f)}</td><td>${marginDisplay(pick)}</td><td class="points">${pts}</td></tr>`;
+   }).join('');
+   return `<section class="fixture-card"><div class="fixture-head"><div class="fixture-title">${title}</div><div class="fixture-meta">${esc(kt.date)} • ${esc(kt.time)}</div></div><div class="table-wrap"><table><thead><tr><th>Player</th><th>Predicted Team</th><th>Predicted Margin</th><th>Points</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
+ }).join('');
+ const bonusSection=document.getElementById('bonusSection');
+ const bonusCard=document.getElementById('bonusCard');
+ bonusSection.style.display='block';
+ if(data.bonuses && data.bonuses.length){
+   bonusCard.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Player</th><th>Bonus Type</th><th>Points</th></tr></thead><tbody>${data.bonuses.map(b=>`<tr><td class="player">${esc(b.player)}</td><td>${esc(b.type)}</td><td class="points">${esc(b.points)}</td></tr>`).join('')}</tbody></table></div>`;
+ }else{
+   const msg=data.roundWinnerStatus==='tie-needs-rule'?'Round-winner bonus pending tie rule.':'No bonus points awarded yet.';
+   bonusCard.innerHTML=`<div class="empty">${esc(msg)}</div>`;
+ }
 }).catch(()=>{document.getElementById('status').textContent='Predictions are temporarily unavailable.'});
 </script>
 </body>
