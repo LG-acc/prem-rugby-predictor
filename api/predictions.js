@@ -1,8 +1,9 @@
 import { get, list } from '@vercel/blob';
+import { roundConfig, submissionPrefix } from '../lib/round-config.js';
 
-const PLAYERS = ['Luke', 'Jo', 'Steve', 'Deb', 'Cas', 'Ash'];
-const DEADLINE = new Date('2026-09-25T18:45:00Z');
-const PREFIX = 'submissions/2026-27/round-1/';
+const PLAYERS = roundConfig.players;
+const DEADLINE = new Date(roundConfig.firstKickoff);
+const PREFIX = submissionPrefix();
 
 async function readJson(pathname) {
   const result = await get(pathname, { access: 'private' });
@@ -25,9 +26,12 @@ export default async function handler(req, res) {
 
     if (now < DEADLINE) {
       return res.status(200).json({
-        round: 1,
+        season: roundConfig.season,
+        round: roundConfig.round,
         locked: true,
-        revealAt: DEADLINE.toISOString(),
+        revealAt: roundConfig.firstKickoff,
+        revealAtDisplay: roundConfig.firstKickoffDisplay,
+        fixtures: roundConfig.fixtures.map(f => ({ game: f.game, home: f.home, away: f.away })),
         message: 'Predictions will be revealed when the first fixture kicks off.'
       });
     }
@@ -53,11 +57,14 @@ export default async function handler(req, res) {
     } while (cursor);
 
     return res.status(200).json({
-      round: 1,
+      season: roundConfig.season,
+      round: roundConfig.round,
       locked: false,
-      revealAt: DEADLINE.toISOString(),
+      revealAt: roundConfig.firstKickoff,
+      revealAtDisplay: roundConfig.firstKickoffDisplay,
       submittedCount: latestByPlayer.size,
       totalPlayers: PLAYERS.length,
+      fixtures: roundConfig.fixtures.map(f => ({ game: f.game, home: f.home, away: f.away })),
       predictions: PLAYERS.filter(name => latestByPlayer.has(name)).map(name => {
         const submission = latestByPlayer.get(name);
         return {
