@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PREM Predictor – Organiser</title>
+<style>
+body{font-family:Arial,Helvetica,sans-serif;background:#f4f6f8;color:#213547;margin:0;padding:24px}.wrap{max-width:760px;margin:auto}h1{text-align:center;color:#0f355e;margin-bottom:6px}.sub{text-align:center;color:#667085;margin:0 0 22px}.card{background:#fff;border:1px solid #e3e7ec;border-radius:14px;box-shadow:0 2px 8px rgba(16,24,40,.06);padding:20px;margin-bottom:18px}.login{max-width:460px;margin:50px auto}.login input{width:100%;box-sizing:border-box;padding:12px;border:1px solid #cfd6de;border-radius:9px;font-size:16px;margin:10px 0}.btn{display:inline-block;border:0;background:#1469c9;color:#fff;padding:10px 14px;border-radius:9px;font-weight:700;cursor:pointer}.statusline{text-align:center;color:#667085;margin-bottom:16px}.player{display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid #edf0f3;gap:18px}.player:last-child{border-bottom:0}.name{font-weight:800}.state{font-weight:800}.yes{color:#16794b}.no{color:#b42318}.time{font-size:12px;color:#667085;margin-top:3px}.summary{font-weight:800;color:#0f355e;margin-bottom:8px}.warn{margin-top:14px;padding:12px;border-radius:9px;background:#fff3cd;color:#7a5b00}.nav{text-align:center;margin-top:18px}.nav a{display:inline-block;text-decoration:none;background:#0f355e;color:#fff;padding:9px 13px;border-radius:8px;font-weight:700;margin:4px}@media(max-width:640px){body{padding:12px}.player{align-items:flex-start;flex-direction:column;gap:5px}}
+</style>
+</head>
+<body>
+<main class="wrap">
+<h1>PREM Predictor 2026/27</h1>
+<p class="sub">Organiser submission status</p>
+<div id="content" class="card login">
+  <div class="summary">Private organiser access</div>
+  <p>Enter the organiser access code to see who has submitted. Predictions themselves are never shown here.</p>
+  <input id="code" type="password" autocomplete="current-password" placeholder="Organiser access code">
+  <button class="btn" id="open">Open status</button>
+  <p id="error" class="time"></p>
+</div>
+<div class="nav"><a href="/">Current round</a><a href="/leaderboard.html">Leaderboard</a><a href="/predictions.html">Predictions</a></div>
+</main>
+<script>
+function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
+function fmt(iso){if(!iso)return '';const d=new Date(iso);return Number.isNaN(d.getTime())?'':d.toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'});}
+async function load(){
+ const code=document.getElementById('code').value.trim();
+ const error=document.getElementById('error');
+ error.textContent='';
+ if(!code){error.textContent='Enter the organiser access code.';return;}
+ const r=await fetch('/api/submission-status?ts='+Date.now(),{headers:{'Authorization':'Bearer '+code}});
+ const data=await r.json();
+ if(!r.ok){error.textContent=data.error||'Access failed.';return;}
+ const content=document.getElementById('content');
+ content.className='';
+ const rows=(data.players||[]).map(p=>`<div class="player"><div><div class="name">${esc(p.name)}</div>${p.submitted?`<div class="time">Latest valid submission: ${esc(fmt(p.receivedAt))}</div>`:''}</div><div class="state ${p.submitted?'yes':'no'}">${p.submitted?'✓ Submitted':'✗ Missing'}</div></div>`).join('');
+ const unresolved=data.unresolvedCount?`<div class="warn">${data.unresolvedCount} unrecognised submission${data.unresolvedCount===1?'':'s'} received before the deadline and may need checking.</div>`:'';
+ content.innerHTML=`<div class="card"><div class="summary">Round ${esc(data.round)} • ${esc(data.submittedCount)} of ${esc(data.totalPlayers)} submitted</div><div class="statusline">Deadline: ${esc(data.deadlineDisplay)}</div>${rows}${unresolved}</div>`;
+}
+document.getElementById('open').addEventListener('click',()=>load().catch(()=>{document.getElementById('error').textContent='Submission status is temporarily unavailable.'}));
+document.getElementById('code').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('open').click()});
+</script>
+</body>
+</html>
