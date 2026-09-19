@@ -22,11 +22,11 @@ function clean(value) {
 }
 
 function escapeHtml(value) {
-  return String(value).replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
+  return String(value).replace(/[&<>'\"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[ch]));
 }
 
 function htmlPage(title, message, ok = true) {
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title><style>body{font-family:Arial,Helvetica,sans-serif;background:#f4f6f8;color:#213547;margin:0;padding:24px}.card{max-width:600px;margin:60px auto;background:#fff;border:1px solid #e3e7ec;border-radius:14px;padding:28px;box-shadow:0 2px 8px rgba(16,24,40,.06)}h1{color:#0f355e}a{display:inline-block;margin-top:12px;background:#1469c9;color:white;text-decoration:none;padding:11px 15px;border-radius:9px;font-weight:700}.status{font-weight:700;color:${ok ? '#238636' : '#b42318'}}</style></head><body><main class="card"><h1>${escapeHtml(title)}</h1><p class="status">${escapeHtml(message)}</p><p>Your submission has been recorded with a server timestamp.</p><a href="/">Back to predictor</a> <a href="/predictions.html">View predictions</a></main></body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title><style>body{font-family:Arial,Helvetica,sans-serif;background:#f4f6f8;color:#213547;margin:0;padding:24px}.card{max-width:600px;margin:60px auto;background:#fff;border:1px solid #e3e7ec;border-radius:14px;padding:28px;box-shadow:0 2px 8px rgba(16,24,40,.06)}h1{color:#0f355e}a{display:inline-block;margin-top:12px;background:#1469c9;color:white;text-decoration:none;padding:11px 15px;border-radius:9px;font-weight:700}.status{font-weight:700;color:${ok ? '#238636' : '#b42318'}}</style></head><body><main class="card"><h1>${escapeHtml(title)}</h1><p class="status">${escapeHtml(message)}</p><a href="/">Back to predictor</a> <a href="/predictions.html">View predictions</a></main></body></html>`;
 }
 
 export default async function handler(req, res) {
@@ -37,11 +37,16 @@ export default async function handler(req, res) {
   }
 
   try {
+    const receivedAt = new Date();
+    if (receivedAt >= DEADLINE) {
+      res.statusCode = 403;
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.end(htmlPage('Round 1 is closed', 'The prediction deadline has passed. No new or revised predictions can be accepted after the first fixture kicks off.', false));
+    }
+
     const body = req.body || {};
     const enteredName = clean(body['Player Name']);
     const canonicalName = aliases.get(normaliseName(enteredName)) || null;
-    const receivedAt = new Date();
-    const beforeDeadline = receivedAt <= DEADLINE;
 
     const picks = [];
     for (let i = 1; i <= 5; i++) {
@@ -70,7 +75,6 @@ export default async function handler(req, res) {
       canonicalName,
       recognised: Boolean(canonicalName),
       receivedAt: receivedAt.toISOString(),
-      beforeDeadline,
       deadline: DEADLINE.toISOString(),
       valid: true,
       picks,
@@ -84,14 +88,12 @@ export default async function handler(req, res) {
       addRandomSuffix: true,
     });
 
-    // Keep the existing email/Formspree trail as a backup and flag unknown names clearly.
     const emailCopy = new URLSearchParams();
     emailCopy.set('_subject', canonicalName ? `PREM Round 1 Predictions – ${canonicalName}` : `UNRECOGNISED NAME – PREM Round 1 – ${enteredName || '(blank)'}`);
     emailCopy.set('Player Name Entered', enteredName);
     emailCopy.set('Recognised As', canonicalName || 'UNRECOGNISED');
     emailCopy.set('Round', String(ROUND));
     emailCopy.set('Received At', receivedAt.toISOString());
-    emailCopy.set('Before Deadline', beforeDeadline ? 'Yes' : 'No');
     for (const pick of picks) {
       emailCopy.set(`Game ${pick.game} Winner`, pick.winner);
       emailCopy.set(`Game ${pick.game} Margin`, String(pick.margin));
@@ -102,19 +104,14 @@ export default async function handler(req, res) {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' },
         body: emailCopy.toString(),
       });
-    } catch (_) {
-      // Blob is the primary record. A temporary email failure must not lose the submission.
-    }
+    } catch (_) {}
 
     res.statusCode = 200;
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     if (!canonicalName) {
       return res.end(htmlPage('Predictions received', `Saved for review because the name “${enteredName || 'blank'}” was not recognised.`, true));
     }
-    if (!beforeDeadline) {
-      return res.end(htmlPage('Predictions received', `Saved, but this submission arrived after the Round 1 deadline and will not count for scoring.`, false));
-    }
-    return res.end(htmlPage('Predictions received', `Thanks ${canonicalName} — your Round 1 predictions were saved. Your latest valid submission before the deadline will count.`, true));
+    return res.end(htmlPage('Predictions received', `Thanks ${canonicalName} — your Round 1 predictions were saved. Your latest valid submission before kickoff will count.`, true));
   } catch (error) {
     console.error('Submission error', error);
     res.statusCode = 500;
