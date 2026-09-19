@@ -3,102 +3,37 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>2026/27 PREM – Round 1</title>
+<title>PREM Predictor</title>
 <style>
-:root{--navy:#0f355e;--blue:#1469c9;--green:#238636;--bg:#f4f6f8;--text:#213547;}
-*{box-sizing:border-box}
-body{font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text);margin:0;padding:24px}
-.wrap{max-width:900px;margin:0 auto}
-.topnav{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:0 0 18px}.topnav a{display:inline-block;background:var(--navy);color:#fff;text-decoration:none;font-weight:700;padding:10px 16px;border-radius:9px}
-h1{text-align:center;color:var(--navy);margin:8px 0 6px}
-.sub{text-align:center;color:#667085;margin:0 0 24px}
-.card,.fixture{background:white;border:1px solid #e3e7ec;border-radius:14px;box-shadow:0 2px 8px rgba(16,24,40,.06);padding:18px;margin-bottom:16px}
-.card label,.margin-row label{display:block;font-weight:700;margin-bottom:7px}
-.card input[type=text]{width:100%;padding:11px 12px;border:1px solid #cfd6df;border-radius:9px;font-size:16px}
-.fixture-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
-.game{font-size:12px;font-weight:800;letter-spacing:.08em;color:#667085;margin-bottom:8px}
-.teams{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:800;color:var(--navy);flex-wrap:wrap}
-.team{display:inline-flex;align-items:center;gap:7px}
-.team img{width:38px;height:38px;object-fit:contain}
-.vs{font-weight:400;color:#667085;margin:0 2px}
-.meta{font-size:13px;color:#667085;padding-top:3px}
-.buttons{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin:14px 0}
-.buttons input{position:absolute;opacity:0;pointer-events:none}
-.buttons label{min-height:66px;padding:9px 8px;border:2px solid #d0d5dd;border-radius:9px;background:#f2f4f7;text-align:center;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;gap:8px}
-.buttons label img{width:34px;height:34px;object-fit:contain;flex:0 0 auto}
-.buttons input:checked+label{background:var(--navy);border-color:var(--navy);color:#fff;font-weight:700}
-.margin-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.margin-row label{margin:0}
-.margin-row input{width:120px;padding:9px 10px;border:1px solid #cfd6df;border-radius:9px;font-size:15px}
-button{width:100%;border:0;border-radius:10px;background:var(--green);color:#fff;padding:14px 18px;font-size:17px;font-weight:700;cursor:pointer;margin:4px 0 20px}
-.note{font-size:12px;color:#667085;text-align:center;margin-top:-8px}
-@media(max-width:640px){body{padding:14px}.buttons{grid-template-columns:1fr}.teams{font-size:16px}.team img{width:32px;height:32px}}
+:root{--navy:#0f355e;--blue:#1469c9;--green:#238636;--bg:#f4f6f8;--text:#213547}*{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text);margin:0;padding:24px}.wrap{max-width:900px;margin:0 auto}.topnav{display:flex;justify-content:center;gap:8px;margin:0 0 18px;flex-wrap:wrap}.topnav a{display:inline-block;background:var(--navy);color:#fff;text-decoration:none;font-weight:700;padding:10px 16px;border-radius:9px}h1{text-align:center;color:var(--navy);margin:8px 0 6px}.sub{text-align:center;color:#667085;margin:0 0 24px}.card,.fixture{background:#fff;border:1px solid #e3e7ec;border-radius:14px;box-shadow:0 2px 8px rgba(16,24,40,.06);padding:18px;margin-bottom:16px}.card label,.margin-row label{display:block;font-weight:700;margin-bottom:7px}.card input[type=text]{width:100%;padding:11px 12px;border:1px solid #cfd6df;border-radius:9px;font-size:16px}.fixture-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}.game{font-size:12px;font-weight:800;letter-spacing:.08em;color:#667085;margin-bottom:8px}.teams{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:800;color:var(--navy);flex-wrap:wrap}.team{display:inline-flex;align-items:center;gap:7px}.team img{width:38px;height:38px;object-fit:contain}.vs{font-weight:400;color:#667085;margin:0 2px}.meta{font-size:13px;color:#667085;padding-top:3px}.buttons{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin:14px 0}.buttons input{position:absolute;opacity:0;pointer-events:none}.buttons label{min-height:66px;padding:9px 8px;border:2px solid #d0d5dd;border-radius:9px;background:#f2f4f7;text-align:center;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;gap:8px}.buttons label img{width:34px;height:34px;object-fit:contain;flex:0 0 auto}.buttons input:checked+label{background:var(--navy);border-color:var(--navy);color:#fff;font-weight:700}.margin-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.margin-row label{margin:0}.margin-row input{width:120px;padding:9px 10px;border:1px solid #cfd6df;border-radius:9px;font-size:15px}button{width:100%;border:0;border-radius:10px;background:var(--green);color:#fff;padding:14px 18px;font-size:17px;font-weight:700;cursor:pointer;margin:4px 0 20px}.note{font-size:12px;color:#667085;text-align:center;margin-top:-8px}.loading{text-align:center;padding:30px;color:#667085}@media(max-width:640px){body{padding:14px}.buttons{grid-template-columns:1fr}.teams{font-size:16px}.team img{width:32px;height:32px}}
 </style>
 </head>
 <body>
 <main class="wrap">
   <div class="topnav"><a href="/leaderboard.html">View Leaderboard</a><a href="/predictions.html">View Predictions</a></div>
-  <h1>2026/27 PREM – Round 1</h1>
-  <p class="sub">Pick the winner and winning margin for each match.</p>
-  <form action="/api/submit" method="POST">
-    <div class="card">
-      <label for="player_name">Player name</label>
-      <input id="player_name" name="Player Name" type="text" required autocomplete="name">
-    </div>
-
-    <section class="fixture">
-      <div class="fixture-top"><div><div class="game">GAME 1</div><div class="teams"><span class="team"><img src="https://202526-prem-r16.netlify.app/images/harlequins.png" alt="Harlequins badge">Harlequins</span><span class="vs">vs</span><span class="team"><img src="https://202526-prem-r16.netlify.app/images/bath.png" alt="Bath Rugby badge">Bath Rugby</span></div></div><div class="meta">Friday, 25 September 2026 – 19:45</div></div>
-      <div class="buttons">
-        <input id="g1_Harlequins" name="Game 1 Winner" type="radio" value="Harlequins" required><label for="g1_Harlequins"><img src="https://202526-prem-r16.netlify.app/images/harlequins.png" alt="">Harlequins</label>
-        <input id="g1_Draw" name="Game 1 Winner" type="radio" value="Draw" required><label for="g1_Draw">Draw</label>
-        <input id="g1_BathRugby" name="Game 1 Winner" type="radio" value="Bath Rugby" required><label for="g1_BathRugby"><img src="https://202526-prem-r16.netlify.app/images/bath.png" alt="">Bath Rugby</label>
-      </div>
-      <div class="margin-row"><label for="g1_margin">Winning margin</label><input id="g1_margin" name="Game 1 Margin" type="number" min="0" inputmode="numeric" placeholder="e.g. 7" required></div>
-    </section>
-
-    <section class="fixture">
-      <div class="fixture-top"><div><div class="game">GAME 2</div><div class="teams"><span class="team"><img src="https://202526-prem-r16.netlify.app/images/saints.png" alt="Northampton Saints badge">Northampton Saints</span><span class="vs">vs</span><span class="team"><img src="https://202526-prem-r16.netlify.app/images/newcastle.png" alt="Newcastle Red Bulls badge">Newcastle Red Bulls</span></div></div><div class="meta">Friday, 25 September 2026 – 19:45</div></div>
-      <div class="buttons">
-        <input id="g2_NorthamptonSaints" name="Game 2 Winner" type="radio" value="Northampton Saints" required><label for="g2_NorthamptonSaints"><img src="https://202526-prem-r16.netlify.app/images/saints.png" alt="">Northampton Saints</label>
-        <input id="g2_Draw" name="Game 2 Winner" type="radio" value="Draw" required><label for="g2_Draw">Draw</label>
-        <input id="g2_NewcastleRedBulls" name="Game 2 Winner" type="radio" value="Newcastle Red Bulls" required><label for="g2_NewcastleRedBulls"><img src="https://202526-prem-r16.netlify.app/images/newcastle.png" alt="">Newcastle Red Bulls</label>
-      </div>
-      <div class="margin-row"><label for="g2_margin">Winning margin</label><input id="g2_margin" name="Game 2 Margin" type="number" min="0" inputmode="numeric" placeholder="e.g. 7" required></div>
-    </section>
-
-    <section class="fixture">
-      <div class="fixture-top"><div><div class="game">GAME 3</div><div class="teams"><span class="team"><img src="https://202526-prem-r16.netlify.app/images/exeter.png" alt="Exeter Chiefs badge">Exeter Chiefs</span><span class="vs">vs</span><span class="team"><img src="https://202526-prem-r16.netlify.app/images/gloucester.png" alt="Gloucester Rugby badge">Gloucester Rugby</span></div></div><div class="meta">Saturday, 26 September 2026 – 15:05</div></div>
-      <div class="buttons">
-        <input id="g3_ExeterChiefs" name="Game 3 Winner" type="radio" value="Exeter Chiefs" required><label for="g3_ExeterChiefs"><img src="https://202526-prem-r16.netlify.app/images/exeter.png" alt="">Exeter Chiefs</label>
-        <input id="g3_Draw" name="Game 3 Winner" type="radio" value="Draw" required><label for="g3_Draw">Draw</label>
-        <input id="g3_GloucesterRugby" name="Game 3 Winner" type="radio" value="Gloucester Rugby" required><label for="g3_GloucesterRugby"><img src="https://202526-prem-r16.netlify.app/images/gloucester.png" alt="">Gloucester Rugby</label>
-      </div>
-      <div class="margin-row"><label for="g3_margin">Winning margin</label><input id="g3_margin" name="Game 3 Margin" type="number" min="0" inputmode="numeric" placeholder="e.g. 7" required></div>
-    </section>
-
-    <section class="fixture">
-      <div class="fixture-top"><div><div class="game">GAME 4</div><div class="teams"><span class="team"><img src="https://202526-prem-r16.netlify.app/images/sale.png" alt="Sale Sharks badge">Sale Sharks</span><span class="vs">vs</span><span class="team"><img src="https://202526-prem-r16.netlify.app/images/bristol.png" alt="Bristol Bears badge">Bristol Bears</span></div></div><div class="meta">Saturday, 26 September 2026 – 17:30</div></div>
-      <div class="buttons">
-        <input id="g4_SaleSharks" name="Game 4 Winner" type="radio" value="Sale Sharks" required><label for="g4_SaleSharks"><img src="https://202526-prem-r16.netlify.app/images/sale.png" alt="">Sale Sharks</label>
-        <input id="g4_Draw" name="Game 4 Winner" type="radio" value="Draw" required><label for="g4_Draw">Draw</label>
-        <input id="g4_BristolBears" name="Game 4 Winner" type="radio" value="Bristol Bears" required><label for="g4_BristolBears"><img src="https://202526-prem-r16.netlify.app/images/bristol.png" alt="">Bristol Bears</label>
-      </div>
-      <div class="margin-row"><label for="g4_margin">Winning margin</label><input id="g4_margin" name="Game 4 Margin" type="number" min="0" inputmode="numeric" placeholder="e.g. 7" required></div>
-    </section>
-
-    <section class="fixture">
-      <div class="fixture-top"><div><div class="game">GAME 5</div><div class="teams"><span class="team"><img src="https://202526-prem-r16.netlify.app/images/leicester.png" alt="Leicester Tigers badge">Leicester Tigers</span><span class="vs">vs</span><span class="team"><img src="https://202526-prem-r16.netlify.app/images/saracens.png" alt="Saracens badge">Saracens</span></div></div><div class="meta">Sunday, 27 September 2026 – 15:00</div></div>
-      <div class="buttons">
-        <input id="g5_LeicesterTigers" name="Game 5 Winner" type="radio" value="Leicester Tigers" required><label for="g5_LeicesterTigers"><img src="https://202526-prem-r16.netlify.app/images/leicester.png" alt="">Leicester Tigers</label>
-        <input id="g5_Draw" name="Game 5 Winner" type="radio" value="Draw" required><label for="g5_Draw">Draw</label>
-        <input id="g5_Saracens" name="Game 5 Winner" type="radio" value="Saracens" required><label for="g5_Saracens"><img src="https://202526-prem-r16.netlify.app/images/saracens.png" alt="">Saracens</label>
-      </div>
-      <div class="margin-row"><label for="g5_margin">Winning margin</label><input id="g5_margin" name="Game 5 Margin" type="number" min="0" inputmode="numeric" placeholder="e.g. 7" required></div>
-    </section>
-
-    <button type="submit">Submit Round 1 Predictions</button>
-    <p class="note">All five winner selections and margins are required. Enter 0 as the margin if you predict a draw. Your latest valid submission before the first match kicks off will count.</p>
-  </form>
+  <h1 id="title">PREM Predictor</h1>
+  <p class="sub" id="subtitle">Loading active round…</p>
+  <div id="app" class="loading">Loading fixtures…</div>
 </main>
+<script>
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function idSafe(s){return String(s).replace(/[^a-z0-9]+/gi,'')}
+fetch('/api/round?ts='+Date.now()).then(r=>r.json()).then(cfg=>{
+ document.title=`${cfg.season} PREM – Round ${cfg.round}`;
+ document.getElementById('title').textContent=`${cfg.season} PREM – Round ${cfg.round}`;
+ document.getElementById('subtitle').textContent='Pick the winner and winning margin for each match.';
+ const fixtures=cfg.fixtures.map(f=>`<section class="fixture">
+   <div class="fixture-top"><div><div class="game">GAME ${f.game}</div><div class="teams"><span class="team"><img src="${esc(f.homeBadge)}" alt="${esc(f.home)} badge">${esc(f.home)}</span><span class="vs">vs</span><span class="team"><img src="${esc(f.awayBadge)}" alt="${esc(f.away)} badge">${esc(f.away)}</span></div></div><div class="meta">${esc(f.kickoff)}</div></div>
+   <div class="buttons">
+     <input id="g${f.game}_${idSafe(f.home)}" name="Game ${f.game} Winner" type="radio" value="${esc(f.home)}" required><label for="g${f.game}_${idSafe(f.home)}"><img src="${esc(f.homeBadge)}" alt="">${esc(f.home)}</label>
+     <input id="g${f.game}_Draw" name="Game ${f.game} Winner" type="radio" value="Draw" required><label for="g${f.game}_Draw">Draw</label>
+     <input id="g${f.game}_${idSafe(f.away)}" name="Game ${f.game} Winner" type="radio" value="${esc(f.away)}" required><label for="g${f.game}_${idSafe(f.away)}"><img src="${esc(f.awayBadge)}" alt="">${esc(f.away)}</label>
+   </div>
+   <div class="margin-row"><label for="g${f.game}_margin">Winning margin</label><input id="g${f.game}_margin" name="Game ${f.game} Margin" type="number" min="0" inputmode="numeric" placeholder="e.g. 7" required></div>
+ </section>`).join('');
+ document.getElementById('app').className='';
+ document.getElementById('app').innerHTML=`<form action="/api/submit" method="POST"><div class="card"><label for="player_name">Player name</label><input id="player_name" name="Player Name" type="text" required autocomplete="name"></div>${fixtures}<button type="submit">Submit Round ${cfg.round} Predictions</button><p class="note">All winner selections and margins are required. Enter 0 as the margin if you predict a draw. Submissions close when the first fixture kicks off: ${esc(cfg.firstKickoffDisplay)}.</p></form>`;
+}).catch(()=>{document.getElementById('app').textContent='The active round could not be loaded. Please try again.'});
+</script>
 </body>
 </html>
