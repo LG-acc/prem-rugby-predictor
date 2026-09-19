@@ -9,7 +9,7 @@
 *{box-sizing:border-box}
 body{font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text);margin:0;padding:24px}
 .wrap{max-width:900px;margin:0 auto}
-.topnav{display:flex;justify-content:center;margin:0 0 18px}.topnav a{display:inline-block;background:var(--navy);color:#fff;text-decoration:none;font-weight:700;padding:10px 16px;border-radius:9px}
+.topnav{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:0 0 18px}.topnav a{display:inline-block;background:var(--navy);color:#fff;text-decoration:none;font-weight:700;padding:10px 16px;border-radius:9px}
 h1{text-align:center;color:var(--navy);margin:8px 0 6px}
 .sub{text-align:center;color:#667085;margin:0 0 24px}
 .card,.fixture{background:white;border:1px solid #e3e7ec;border-radius:14px;box-shadow:0 2px 8px rgba(16,24,40,.06);padding:18px;margin-bottom:16px}
@@ -37,15 +37,14 @@ button{width:100%;border:0;border-radius:10px;background:var(--green);color:#fff
 </head>
 <body>
 <main class="wrap">
-  <div class="topnav"><a href="/leaderboard.html">View Leaderboard</a></div>
+  <div class="topnav"><a href="/leaderboard.html">View Leaderboard</a><a href="/predictions.html">View Predictions</a></div>
   <h1>2026/27 PREM – Round 1</h1>
   <p class="sub">Pick the winner and winning margin for each match.</p>
-  <form action="https://formspree.io/f/mwpngaee" method="POST">
+  <form action="/api/submit" method="POST">
     <div class="card">
       <label for="player_name">Player name</label>
       <input id="player_name" name="Player Name" type="text" required autocomplete="name">
     </div>
-    <input type="hidden" name="_subject" value="PREM Round 1 Predictions">
 
     <section class="fixture">
       <div class="fixture-top"><div><div class="game">GAME 1</div><div class="teams"><span class="team"><img src="https://202526-prem-r16.netlify.app/images/harlequins.png" alt="Harlequins badge">Harlequins</span><span class="vs">vs</span><span class="team"><img src="https://202526-prem-r16.netlify.app/images/bath.png" alt="Bath Rugby badge">Bath Rugby</span></div></div><div class="meta">Friday, 25 September 2026 – 19:45</div></div>
@@ -54,7 +53,7 @@ button{width:100%;border:0;border-radius:10px;background:var(--green);color:#fff
         <input id="g1_Draw" name="Game 1 Winner" type="radio" value="Draw" required><label for="g1_Draw">Draw</label>
         <input id="g1_BathRugby" name="Game 1 Winner" type="radio" value="Bath Rugby" required><label for="g1_BathRugby"><img src="https://202526-prem-r16.netlify.app/images/bath.png" alt="">Bath Rugby</label>
       </div>
-      <div class="margin-row"><label for="g1_margin">Winning margin</label><input id="g1_margin" name="Game 1 Margin" type="number" min="0" inputmode="numeric" placeholder="e.g. 7"></div>
+      <div class="margin-row"><label for="g1_margin">Winning margin</label><input id="g1_margin" name="Game 1 Margin" type="number" min="0" inputmode="numeric" placeholder="e.g. 7" required></div>
     </section>
 
     <section class="fixture">
@@ -64,7 +63,7 @@ button{width:100%;border:0;border-radius:10px;background:var(--green);color:#fff
         <input id="g2_Draw" name="Game 2 Winner" type="radio" value="Draw" required><label for="g2_Draw">Draw</label>
         <input id="g2_NewcastleRedBulls" name="Game 2 Winner" type="radio" value="Newcastle Red Bulls" required><label for="g2_NewcastleRedBulls"><img src="https://202526-prem-r16.netlify.app/images/newcastle.png" alt="">Newcastle Red Bulls</label>
       </div>
-      <div class="margin-row"><label for="g2_margin">Winning margin</label><input id="g2_margin" name="Game 2 Margin" type="number" min="0" inputmode="numeric" placeholder="e.g. 7"></div>
+      <div class="margin-row"><label for="g2_margin">Winning margin</label><input id="g2_margin" name="Game 2 Margin" type="number" min="0" inputmode="numeric" placeholder="e.g. 7" required></div>
     </section>
 
     <section class="fixture">
@@ -74,7 +73,7 @@ button{width:100%;border:0;border-radius:10px;background:var(--green);color:#fff
         <input id="g3_Draw" name="Game 3 Winner" type="radio" value="Draw" required><label for="g3_Draw">Draw</label>
         <input id="g3_GloucesterRugby" name="Game 3 Winner" type="radio" value="Gloucester Rugby" required><label for="g3_GloucesterRugby"><img src="https://202526-prem-r16.netlify.app/images/gloucester.png" alt="">Gloucester Rugby</label>
       </div>
-      <div class="margin-row"><label for="g3_margin">Winning margin</label><input id="g3_margin" name="Game 3 Margin" type="number" min="0" inputmode="numeric" placeholder="e.g. 7"></div>
+      <div class="margin-row"><label for="g3_margin">Winning margin</label><input id="g3_margin" name="Game 3 Margin" type="number" min="0" inputmode="numeric" placeholder="e.g. 7" required></div>
     </section>
 
     <section class="fixture">
@@ -84,7 +83,7 @@ button{width:100%;border:0;border-radius:10px;background:var(--green);color:#fff
         <input id="g4_Draw" name="Game 4 Winner" type="radio" value="Draw" required><label for="g4_Draw">Draw</label>
         <input id="g4_BristolBears" name="Game 4 Winner" type="radio" value="Bristol Bears" required><label for="g4_BristolBears"><img src="https://202526-prem-r16.netlify.app/images/bristol.png" alt="">Bristol Bears</label>
       </div>
-      <div class="margin-row"><label for="g4_margin">Winning margin</label><input id="g4_margin" name="Game 4 Margin" type="number" min="0" inputmode="numeric" placeholder="e.g. 7"></div>
+      <div class="margin-row"><label for="g4_margin">Winning margin</label><input id="g4_margin" name="Game 4 Margin" type="number" min="0" inputmode="numeric" placeholder="e.g. 7" required></div>
     </section>
 
     <section class="fixture">
@@ -94,11 +93,11 @@ button{width:100%;border:0;border-radius:10px;background:var(--green);color:#fff
         <input id="g5_Draw" name="Game 5 Winner" type="radio" value="Draw" required><label for="g5_Draw">Draw</label>
         <input id="g5_Saracens" name="Game 5 Winner" type="radio" value="Saracens" required><label for="g5_Saracens"><img src="https://202526-prem-r16.netlify.app/images/saracens.png" alt="">Saracens</label>
       </div>
-      <div class="margin-row"><label for="g5_margin">Winning margin</label><input id="g5_margin" name="Game 5 Margin" type="number" min="0" inputmode="numeric" placeholder="e.g. 7"></div>
+      <div class="margin-row"><label for="g5_margin">Winning margin</label><input id="g5_margin" name="Game 5 Margin" type="number" min="0" inputmode="numeric" placeholder="e.g. 7" required></div>
     </section>
 
     <button type="submit">Submit Round 1 Predictions</button>
-    <p class="note">All five winner selections are required. Enter 0 as the margin if you predict a draw.</p>
+    <p class="note">All five winner selections and margins are required. Enter 0 as the margin if you predict a draw. Your latest valid submission before the first match kicks off will count.</p>
   </form>
 </main>
 </body>
