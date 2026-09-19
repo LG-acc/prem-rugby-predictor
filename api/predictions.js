@@ -1,6 +1,7 @@
 import { get, list } from '@vercel/blob';
 import { roundConfig, submissionPrefix } from '../lib/round-config.js';
 import { results } from '../lib/results.js';
+import { resolveRoundWinners } from '../lib/round-winner.js';
 
 const PLAYERS = roundConfig.players;
 const DEADLINE = new Date(roundConfig.firstKickoff);
@@ -22,8 +23,18 @@ function resultFor(game) {
     homeScore: Number(r.homeScore),
     awayScore: Number(r.awayScore),
     winner: diff === 0 ? 'Draw' : diff > 0 ? fixture.home : fixture.away,
-    margin: Math.abs(diff)
+    margin: Math.abs(diff),
+    signedMargin: diff,
+    awayWon: diff < 0
   };
+}
+
+function predictedSignedMargin(pick, fixture) {
+  if (!pick) return null;
+  if (pick.winner === 'Draw') return 0;
+  if (pick.winner === fixture.home) return Number(pick.margin);
+  if (pick.winner === fixture.away) return -Number(pick.margin);
+  return null;
 }
 
 function matchPoints(pick, actual) {
@@ -99,14 +110,29 @@ export default async function handler(req, res) {
 
     const playerRows = PLAYERS.map(name => {
       const submission = latestByPlayer.get(name);
+      let correctWinners = 0;
+      let awayWinners = 0;
+      let totalMarginDifference = 0;
+
       const picks = roundConfig.fixtures.map(fixture => {
         const pick = submission?.picks?.find(p => p.game === fixture.game) || null;
         const actual = resultFor(fixture.game);
+        const points = !submission ? 0 : actual ? matchPoints(pick, actual) : null;
+
+        if (submission && actual && pick) {
+          if (pick.winner === actual.winner) {
+            correctWinners += 1;
+            if (actual.awayWon) awayWinners += 1;
+          }
+          const signedPred = predictedSignedMargin(pick, fixture);
+          if (signedPred != null) totalMarginDifference += Math.abs(signedPred - actual.signedMargin);
+        }
+
         return {
           game: fixture.game,
           winner: pick?.winner ?? null,
           margin: pick?.margin ?? null,
-          points: !submission ? 0 : actual ? matchPoints(pick, actual) : null
+          points
         };
       });
 
@@ -118,6 +144,7 @@ export default async function handler(req, res) {
       const matchTotal = picks.reduce((sum, p) => sum + (Number.isFinite(Number(p.points)) && p.points != null ? Number(p.points) : 0), 0);
       const allFiveBonus = allFiveCorrect ? 5 : 0;
       const basePoints = matchTotal + allFiveBonus;
+      const matchScores = picks.filter(p=>p.points!=null).map(p=>Number(p.points||0)).sort((a,b)=>b-a);
 
       return {
         player: name,
@@ -127,6 +154,10 @@ export default async function handler(req, res) {
         matchTotal,
         allFiveBonus,
         basePoints,
+        correctWinners,
+        awayWinners,
+        totalMarginDifference,
+        matchScores,
         roundWinnerBonus: 0,
         totalPoints: basePoints
       };
@@ -135,16 +166,13 @@ export default async function handler(req, res) {
     let roundWinnerStatus = 'pending';
     let roundWinners = [];
     if (roundComplete) {
-      const max = Math.max(...playerRows.map(p => p.basePoints));
-      roundWinners = playerRows.filter(p => p.basePoints === max).map(p => p.player);
-      if (roundWinners.length === 1) {
-        const winner = playerRows.find(p => p.player === roundWinners[0]);
+      const winners = resolveRoundWinners(playerRows);
+      roundWinners = winners.map(p => p.player);
+      for (const winner of winners) {
         winner.roundWinnerBonus = 10;
         winner.totalPoints += 10;
-        roundWinnerStatus = 'awarded';
-      } else {
-        roundWinnerStatus = 'tie-needs-rule';
       }
+      roundWinnerStatus = winners.length === 1 ? 'awarded' : 'joint-winners';
     }
 
     const bonuses = [];
