@@ -1,8 +1,9 @@
 import { get, list } from '@vercel/blob';
+import { roundConfig, submissionPrefix } from '../lib/round-config.js';
 
-const PLAYERS = ['Luke', 'Jo', 'Steve', 'Deb', 'Cas', 'Ash'];
-const DEADLINE = new Date('2026-09-25T18:45:00Z');
-const PREFIX = 'submissions/2026-27/round-1/';
+const DEADLINE = new Date(roundConfig.firstKickoff);
+const PLAYERS = roundConfig.players;
+const PREFIX = submissionPrefix();
 
 async function readJson(pathname) {
   const result = await get(pathname, { access: 'private' });
@@ -46,9 +47,10 @@ export default async function handler(req, res) {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store');
     return res.status(200).json({
-      season: '2026/27',
-      round: 1,
-      deadline: DEADLINE.toISOString(),
+      season: roundConfig.season,
+      round: roundConfig.round,
+      deadline: roundConfig.firstKickoff,
+      deadlineDisplay: roundConfig.firstKickoffDisplay,
       totalPlayers: PLAYERS.length,
       submittedCount: submitted.length,
       submitted,
