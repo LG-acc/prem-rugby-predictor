@@ -5,23 +5,48 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>PREM Predictor 2026/27 – Past Rounds</title>
 <style>
-body{font-family:Arial,Helvetica,sans-serif;background:#f4f6f8;color:#213547;margin:0;padding:24px}.wrap{max-width:900px;margin:auto}h1{text-align:center;color:#0f355e;margin-bottom:6px}.sub{text-align:center;color:#667085;margin:0 0 22px}.card{background:#fff;border:1px solid #e3e7ec;border-radius:14px;box-shadow:0 2px 8px rgba(16,24,40,.06);padding:18px;margin-bottom:14px}.round-title{font-size:18px;font-weight:800;color:#0f355e;margin-bottom:8px}.meta{font-size:13px;color:#667085;margin-bottom:10px}.btn{display:inline-block;text-decoration:none;background:#1469c9;color:#fff;padding:10px 14px;border-radius:9px;font-weight:700}.nav{text-align:center;margin-top:20px}.nav a{display:inline-block;text-decoration:none;background:#0f355e;color:#fff;padding:10px 14px;border-radius:9px;font-weight:700;margin:4px}.empty{text-align:center;color:#667085;padding:30px}@media(max-width:640px){body{padding:14px}}
+body{font-family:Arial,Helvetica,sans-serif;background:#f4f6f8;color:#213547;margin:0;padding:24px}.wrap{max-width:1200px;margin:auto}h1{text-align:center;color:#0f355e;margin-bottom:6px}.sub{text-align:center;color:#667085;margin:0 0 22px}.round-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:26px}.card{background:#fff;border:1px solid #e3e7ec;border-radius:14px;box-shadow:0 2px 8px rgba(16,24,40,.06);padding:18px}.round-title{font-size:18px;font-weight:800;color:#0f355e;margin-bottom:8px}.meta{font-size:13px;color:#667085;margin-bottom:10px}.btn{display:inline-block;border:0;text-decoration:none;background:#1469c9;color:#fff;padding:10px 14px;border-radius:9px;font-weight:700;cursor:pointer}.fixture-card{background:#fff;border:1px solid #e3e7ec;border-radius:14px;box-shadow:0 2px 8px rgba(16,24,40,.06);overflow:hidden;margin-bottom:22px}.fixture-head{background:#0f355e;color:#fff;padding:16px 18px;text-align:center}.fixture-title{display:flex;align-items:center;justify-content:center;gap:10px;font-size:20px;font-weight:800;flex-wrap:wrap}.fixture-title img,.pick-team img{width:28px;height:28px;object-fit:contain}.fixture-meta{margin-top:6px;font-size:12px;color:#dbe7f3}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{padding:11px 10px;border-bottom:1px solid #edf0f3;text-align:center}th{background:#eef3f8;color:#294968;font-size:12px}td{font-size:13px}.player{text-align:left;font-weight:800}.pick-team{display:inline-flex;align-items:center;justify-content:center;gap:7px;font-weight:700;min-height:28px}.points{font-weight:900}.bonus-section{margin-top:30px}.bonus-section h2{color:#0f355e;margin:0 0 12px}.bonus-card{background:#fff;border:1px solid #e3e7ec;border-radius:14px;box-shadow:0 2px 8px rgba(16,24,40,.06);overflow:hidden}.bonus-card th{background:#0f355e;color:#fff}.empty{text-align:center;color:#667085;padding:30px}.nav{text-align:center;margin-top:22px}.nav a{display:inline-block;text-decoration:none;background:#0f355e;color:#fff;padding:10px 14px;border-radius:9px;font-weight:700;margin:4px}.back{margin:0 0 18px}@media(max-width:700px){body{padding:12px}.fixture-title{font-size:17px}th,td{padding:9px 6px;font-size:11px}.fixture-title img,.pick-team img{width:24px;height:24px}}
 </style>
 </head>
 <body>
 <main class="wrap">
 <h1>PREM Predictor 2026/27</h1>
-<p class="sub">Past rounds</p>
-<div id="list" class="empty">Loading archive…</div>
-<div class="nav"><a href="/">Current round</a><a href="/leaderboard.html">Leaderboard</a></div>
+<p class="sub" id="subtitle">Past rounds</p>
+<div id="content" class="empty">Loading archive…</div>
+<div class="nav"><a href="/">Current round</a><a href="/predictions.html">Predictions</a><a href="/leaderboard.html">Leaderboard</a></div>
 </main>
 <script>
-fetch('/rounds/index.json?ts='+Date.now()).then(r=>r.json()).then(data=>{
- const el=document.getElementById('list');
- if(!data.rounds || data.rounds.length===0){el.className='empty';el.textContent='No completed rounds have been archived yet.';return;}
- el.className='';
- el.innerHTML=data.rounds.slice().sort((a,b)=>b.round-a.round).map(r=>`<section class="card"><div class="round-title">Round ${r.round}</div><div class="meta">${r.completedAt?`Completed ${r.completedAt}`:'Completed round'}</div><a class="btn" href="${r.url}">View round</a></section>`).join('');
-}).catch(()=>{document.getElementById('list').textContent='Archive unavailable.'});
+function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
+function splitKickoff(k){const parts=String(k||'').split(' – ');return {date:parts[0]||'',time:parts[1]||''}}
+function badge(src,name){return src?`<img src="${esc(src)}" alt="${esc(name)} badge">`:''}
+function pickDisplay(pick,fixture){if(!pick||!pick.winner)return '';if(pick.winner==='Draw')return '<span class="pick-team">Draw</span>';const src=pick.winner===fixture.home?fixture.homeBadge:pick.winner===fixture.away?fixture.awayBadge:'';return `<span class="pick-team">${badge(src,pick.winner)}${esc(pick.winner)}</span>`}
+function marginDisplay(pick){if(!pick||!pick.winner||pick.winner==='Draw')return '';return esc(pick.margin)}
+function renderRound(data){
+ const content=document.getElementById('content');
+ document.getElementById('subtitle').textContent=`Round ${data.round} archive`;
+ const byPlayer={};(data.predictions||[]).forEach(p=>byPlayer[p.player]=p);
+ const games=(data.fixtures||[]).map(f=>{
+  const kt=splitKickoff(f.kickoff);
+  const title=`${badge(f.homeBadge,f.home)}${esc(f.home)} <strong>${f.homeScore}–${f.awayScore}</strong> ${esc(f.away)}${badge(f.awayBadge,f.away)}`;
+  const rows=(data.players||[]).map(name=>{const p=byPlayer[name];const pick=p?.picks?.find(x=>x.game===f.game)||null;const pts=p&&!p.submitted?'0':String(pick?.points??0);return `<tr><td class="player">${esc(name)}</td><td>${pickDisplay(pick,f)}</td><td>${marginDisplay(pick)}</td><td class="points">${pts}</td></tr>`}).join('');
+  return `<section class="fixture-card"><div class="fixture-head"><div class="fixture-title">${title}</div><div class="fixture-meta">${esc(kt.date)} • ${esc(kt.time)}</div></div><div class="table-wrap"><table><thead><tr><th>Player</th><th>Predicted Team</th><th>Predicted Margin</th><th>Points</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
+ }).join('');
+ let bonus='';
+ if(data.bonuses&&data.bonuses.length){bonus=`<section class="bonus-section"><h2>Bonus Points</h2><div class="bonus-card"><div class="table-wrap"><table><thead><tr><th>Player</th><th>Bonus Type</th><th>Points</th></tr></thead><tbody>${data.bonuses.map(b=>`<tr><td class="player">${esc(b.player)}</td><td>${esc(b.type)}</td><td class="points">${esc(b.points)}</td></tr>`).join('')}</tbody></table></div></div></section>`}else{bonus='<section class="bonus-section"><h2>Bonus Points</h2><div class="bonus-card"><div class="empty">No bonus points awarded.</div></div></section>'}
+ content.className='';
+ content.innerHTML=`<div class="back"><a class="btn" href="/archive.html">← All past rounds</a></div>${games}${bonus}`;
+}
+const round=new URLSearchParams(location.search).get('round');
+if(round){
+ fetch('/api/archive?round='+encodeURIComponent(round)+'&ts='+Date.now()).then(r=>r.json()).then(data=>{if(data.error)throw new Error(data.error);renderRound(data)}).catch(()=>{document.getElementById('content').textContent='Archived round unavailable.'});
+}else{
+ fetch('/api/archive?ts='+Date.now()).then(r=>r.json()).then(data=>{
+  const el=document.getElementById('content');
+  if(!data.rounds||data.rounds.length===0){el.className='empty';el.textContent='No completed rounds have been archived yet.';return;}
+  el.className='round-list';
+  el.innerHTML=data.rounds.map(r=>`<section class="card"><div class="round-title">Round ${r.round}</div><div class="meta">${r.completedAt?`Completed ${esc(r.completedAt)}`:'Completed round'}</div><a class="btn" href="/archive.html?round=${r.round}">View round</a></section>`).join('');
+ }).catch(()=>{document.getElementById('content').textContent='Archive unavailable.'});
+}
 </script>
 </body>
 </html>
