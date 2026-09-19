@@ -1,5 +1,6 @@
 import { get, list } from '@vercel/blob';
 import { archiveRounds } from '../lib/archive-rounds.js';
+import { resolveRoundWinners } from '../lib/round-winner.js';
 
 async function readJson(pathname) {
   const result = await get(pathname, { access: 'private' });
@@ -19,9 +20,19 @@ function actualFor(round, game) {
   return {
     winner: diff === 0 ? 'Draw' : diff > 0 ? fixture.home : fixture.away,
     margin: Math.abs(diff),
+    signedMargin: diff,
+    awayWon: diff < 0,
     homeScore: Number(result.homeScore),
     awayScore: Number(result.awayScore)
   };
+}
+
+function predictedSignedMargin(pick, fixture) {
+  if (!pick) return null;
+  if (pick.winner === 'Draw') return 0;
+  if (pick.winner === fixture.home) return Number(pick.margin);
+  if (pick.winner === fixture.away) return -Number(pick.margin);
+  return null;
 }
 
 function matchPoints(pick, actual) {
@@ -55,16 +66,32 @@ async function buildRound(round) {
   const latest = await latestSubmissions(round);
   const predictions = round.players.map(name => {
     const submission = latest.get(name);
+    let correctWinners = 0;
+    let awayWinners = 0;
+    let totalMarginDifference = 0;
+
     const picks = round.fixtures.map(fixture => {
       const pick = submission?.picks?.find(p => p.game === fixture.game) || null;
       const actual = actualFor(round, fixture.game);
+      const points = submission ? matchPoints(pick, actual) : 0;
+
+      if (submission && pick && actual) {
+        if (pick.winner === actual.winner) {
+          correctWinners += 1;
+          if (actual.awayWon) awayWinners += 1;
+        }
+        const signedPred = predictedSignedMargin(pick, fixture);
+        if (signedPred != null) totalMarginDifference += Math.abs(signedPred - actual.signedMargin);
+      }
+
       return {
         game: fixture.game,
         winner: pick?.winner ?? null,
         margin: pick?.margin ?? null,
-        points: submission ? matchPoints(pick, actual) : 0
+        points
       };
     });
+
     const allFiveCorrect = Boolean(submission) && picks.every((p, i) => {
       const actual = actualFor(round, round.fixtures[i].game);
       return actual && p.winner === actual.winner;
@@ -78,16 +105,19 @@ async function buildRound(round) {
       matchTotal,
       allFiveBonus,
       basePoints: matchTotal + allFiveBonus,
+      correctWinners,
+      awayWinners,
+      totalMarginDifference,
+      matchScores: picks.map(p=>Number(p.points||0)).sort((a,b)=>b-a),
       roundWinnerBonus: 0,
       totalPoints: matchTotal + allFiveBonus
     };
   });
 
-  const max = Math.max(...predictions.map(p => p.basePoints));
-  const winners = predictions.filter(p => p.basePoints === max);
-  if (winners.length === 1) {
-    winners[0].roundWinnerBonus = 10;
-    winners[0].totalPoints += 10;
+  const winners = resolveRoundWinners(predictions);
+  for (const winner of winners) {
+    winner.roundWinnerBonus = 10;
+    winner.totalPoints += 10;
   }
 
   const bonuses = [];
@@ -112,7 +142,8 @@ async function buildRound(round) {
     }),
     predictions,
     bonuses,
-    roundWinnerStatus: winners.length === 1 ? 'awarded' : 'tie-needs-rule'
+    roundWinnerStatus: winners.length === 1 ? 'awarded' : 'joint-winners',
+    roundWinners: winners.map(p=>p.player)
   };
 }
 
