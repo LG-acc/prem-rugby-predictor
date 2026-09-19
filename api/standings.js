@@ -3,6 +3,7 @@ import { roundConfig, submissionPrefix } from '../lib/round-config.js';
 import { results } from '../lib/results.js';
 import { archiveRounds } from '../lib/archive-rounds.js';
 import { resolveRoundWinners } from '../lib/round-winner.js';
+import { validateRoundResults, resultsFingerprint } from '../lib/round-audit.js';
 
 function blankStats(){
   return {
@@ -29,7 +30,7 @@ function actualFor(game) {
   if (!r || r.homeScore == null || r.awayScore == null) return null;
   const fixture = roundConfig.fixtures.find(f => f.game === game);
   if (!fixture) return null;
-  const diff = r.homeScore - r.awayScore;
+  const diff = Number(r.homeScore) - Number(r.awayScore);
   return {
     winner: diff === 0 ? 'Draw' : diff > 0 ? fixture.home : fixture.away,
     margin: Math.abs(diff),
@@ -37,8 +38,8 @@ function actualFor(game) {
     awayWon: diff < 0,
     home: fixture.home,
     away: fixture.away,
-    homeScore: r.homeScore,
-    awayScore: r.awayScore
+    homeScore: Number(r.homeScore),
+    awayScore: Number(r.awayScore)
   };
 }
 
@@ -100,6 +101,8 @@ export default async function handler(req,res){
     const archived = archivedRoundsForSeason();
     const archivedRoundNumbers = new Set(archived.map(r=>r.round));
     const currentAlreadyArchived = archivedRoundNumbers.has(roundConfig.round);
+    const resultAudit = validateRoundResults(roundConfig.fixtures, results.games);
+    const resultFingerprint = resultsFingerprint(roundConfig.fixtures, results.games);
 
     const deadline = new Date(roundConfig.firstKickoff);
     const latest = new Map();
@@ -120,7 +123,7 @@ export default async function handler(req,res){
     const completedGames = results.games
       .filter(r=>r.homeScore!=null && r.awayScore!=null)
       .map(r=>r.game);
-    const roundComplete = completedGames.length === roundConfig.fixtures.length;
+    const roundComplete = resultAudit.complete;
     const roundRows = [];
 
     for(const name of roundConfig.players){
@@ -192,6 +195,33 @@ export default async function handler(req,res){
       return {name,...combined};
     });
 
+    const reconciliationIssues = [...resultAudit.issues];
+    if(roundComplete){
+      if(roundRows.length !== roundConfig.players.length) reconciliationIssues.push('Player count does not match the configured league players.');
+      for(const row of roundRows){
+        const expectedTotal = Number(row.basePoints || 0) + Number(row.bonusPoints || 0);
+        if(Number(row.totalPoints || 0) !== expectedTotal) reconciliationIssues.push(`${row.name}: round total does not equal Base Points + Bonus Points.`);
+        if(row.hasSubmission && Number(row.predictionsMade || 0) !== roundConfig.fixtures.length) reconciliationIssues.push(`${row.name}: submission does not have a scored prediction for every match.`);
+        if(!row.hasSubmission && Number(row.totalPoints || 0) !== 0) reconciliationIssues.push(`${row.name}: non-submitter has non-zero round points.`);
+      }
+      if(roundWinners.length === 0) reconciliationIssues.push('No round winner could be resolved.');
+    }
+
+    const finalisation = {
+      ready: roundComplete && reconciliationIssues.length === 0,
+      resultsValid: resultAudit.issues.length === 0,
+      completedResults: resultAudit.completedCount,
+      totalFixtures: roundConfig.fixtures.length,
+      recognisedSubmissions: latest.size,
+      totalPlayers: roundConfig.players.length,
+      nonSubmitters: roundConfig.players.filter(name=>!latest.has(name)),
+      allFiveBonusPlayers: roundRows.filter(r=>roundComplete && r.hasSubmission && r.correctWinners===roundConfig.fixtures.length).map(r=>r.name),
+      roundWinners,
+      roundWinnerStatus,
+      resultFingerprint,
+      issues: reconciliationIssues
+    };
+
     const latestCompletedRound = roundComplete && !currentAlreadyArchived
       ? {round:roundConfig.round,players:roundRows.map(({hasSubmission,matchScores,...p})=>p)}
       : latestArchivedRound(archived);
@@ -208,7 +238,8 @@ export default async function handler(req,res){
       currentRoundPlayers:roundRows,
       latestCompletedRound,
       archivedRounds:archived.map(r=>r.round).sort((a,b)=>a-b),
-      currentAlreadyArchived
+      currentAlreadyArchived,
+      finalisation
     });
   }catch(error){
     console.error('Standings API error',error);
