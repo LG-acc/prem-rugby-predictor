@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PREM Predictor 2026/27 – Predictions</title>
+<title>PREM Predictor – Predictions</title>
 <style>
 body{font-family:Arial,Helvetica,sans-serif;background:#f4f6f8;color:#213547;margin:0;padding:24px}.wrap{max-width:1000px;margin:auto}h1{text-align:center;color:#0f355e;margin-bottom:6px}.sub{text-align:center;color:#667085;margin:0 0 22px}.status{background:#fff;border:1px solid #e3e7ec;border-radius:14px;box-shadow:0 2px 8px rgba(16,24,40,.06);padding:20px;text-align:center;margin-bottom:18px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px}.card{background:#fff;border:1px solid #e3e7ec;border-radius:14px;box-shadow:0 2px 8px rgba(16,24,40,.06);padding:18px}.card h2{margin:0 0 12px;color:#0f355e}.pick{padding:10px 0;border-top:1px solid #edf0f3}.pick:first-of-type{border-top:0}.game{font-size:12px;color:#667085;font-weight:700}.choice{font-weight:700;margin-top:3px}.nav{text-align:center;margin-top:20px}.nav a{display:inline-block;text-decoration:none;background:#1469c9;color:#fff;padding:10px 14px;border-radius:9px;font-weight:700;margin:4px}@media(max-width:640px){body{padding:14px}}
 </style>
@@ -11,27 +11,25 @@ body{font-family:Arial,Helvetica,sans-serif;background:#f4f6f8;color:#213547;mar
 <body>
 <main class="wrap">
 <h1>PREM Predictor 2026/27</h1>
-<p class="sub">Round 1 predictions</p>
-<div class="status" id="status">Checking prediction lock…</div>
+<p class="sub" id="subtitle">Predictions</p>
+<div class="status" id="status">Checking predictions…</div>
 <div class="grid" id="grid"></div>
 <div class="nav"><a href="/">Make predictions</a><a href="/leaderboard.html">View leaderboard</a></div>
 </main>
 <script>
-const fixtures={1:'Harlequins v Bath Rugby',2:'Northampton Saints v Newcastle Red Bulls',3:'Exeter Chiefs v Gloucester Rugby',4:'Sale Sharks v Bristol Bears',5:'Leicester Tigers v Saracens'};
 fetch('/api/predictions?ts='+Date.now()).then(r=>r.json()).then(data=>{
  const status=document.getElementById('status');
  const grid=document.getElementById('grid');
  if(data.error){status.textContent=data.error;return;}
+ document.getElementById('subtitle').textContent=`Round ${data.round} predictions`;
+ const fixtures={}; (data.fixtures||[]).forEach(f=>fixtures[f.game]=`${f.home} v ${f.away}`);
  if(data.locked){
-   status.textContent='Predictions are hidden until the first fixture kicks off at 19:45 on Friday 25 September.';
+   status.innerHTML=`Predictions are locked until <strong>${data.revealAtDisplay}</strong>.<br>No player predictions are visible before the first fixture kicks off.`;
    return;
  }
- if(!data.predictions || data.predictions.length===0){
-   status.textContent='The prediction deadline has passed, but there are no recognised on-time submissions to display.';
-   return;
- }
- status.textContent=`The Round 1 deadline has passed. Showing ${data.predictions.length} recognised on-time submission${data.predictions.length===1?'':'s'}.`;
- grid.innerHTML=data.predictions.map(p=>`<section class="card"><h2>${p.player}</h2>${p.picks.map(x=>`<div class="pick"><div class="game">Game ${x.game}: ${fixtures[x.game]}</div><div class="choice">${x.winner==='Draw'?'Draw':x.winner+' by '+x.margin}</div></div>`).join('')}</section>`).join('');
+ status.textContent=`Round ${data.round} predictions are now visible. ${data.submittedCount} recognised on-time entr${data.submittedCount===1?'y':'ies'} received.`;
+ if(!data.predictions || !data.predictions.length){grid.innerHTML='<section class="card"><p>No valid on-time predictions were submitted.</p></section>';return;}
+ grid.innerHTML=data.predictions.map(p=>`<section class="card"><h2>${p.player}</h2>${p.picks.map(x=>`<div class="pick"><div class="game">Game ${x.game}: ${fixtures[x.game]||''}</div><div class="choice">${x.winner==='Draw'?'Draw':x.winner+' by '+x.margin}</div></div>`).join('')}</section>`).join('');
 }).catch(()=>{document.getElementById('status').textContent='Predictions are temporarily unavailable.'});
 </script>
 </body>
