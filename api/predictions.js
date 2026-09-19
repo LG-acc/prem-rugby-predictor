@@ -19,6 +19,19 @@ export default async function handler(req, res) {
   }
 
   try {
+    const now = new Date();
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store');
+
+    if (now < DEADLINE) {
+      return res.status(200).json({
+        round: 1,
+        locked: true,
+        revealAt: DEADLINE.toISOString(),
+        message: 'Predictions will be revealed when the first fixture kicks off.'
+      });
+    }
+
     const latestByPlayer = new Map();
     let cursor;
 
@@ -29,7 +42,7 @@ export default async function handler(req, res) {
         if (!submission || !submission.valid || !submission.recognised || !submission.canonicalName) continue;
         if (!PLAYERS.includes(submission.canonicalName)) continue;
         const received = new Date(submission.receivedAt);
-        if (Number.isNaN(received.getTime()) || received > DEADLINE || !submission.beforeDeadline) continue;
+        if (Number.isNaN(received.getTime()) || received >= DEADLINE) continue;
 
         const current = latestByPlayer.get(submission.canonicalName);
         if (!current || new Date(current.receivedAt) < received) {
@@ -39,26 +52,13 @@ export default async function handler(req, res) {
       cursor = page.hasMore ? page.cursor : undefined;
     } while (cursor);
 
-    const allSubmitted = PLAYERS.every(name => latestByPlayer.has(name));
-    res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    res.setHeader('Cache-Control', 'no-store');
-
-    if (!allSubmitted) {
-      return res.status(200).json({
-        round: 1,
-        allSubmitted: false,
-        submittedCount: latestByPlayer.size,
-        totalPlayers: PLAYERS.length,
-        message: 'Predictions will appear once all six players have submitted.'
-      });
-    }
-
     return res.status(200).json({
       round: 1,
-      allSubmitted: true,
-      submittedCount: PLAYERS.length,
+      locked: false,
+      revealAt: DEADLINE.toISOString(),
+      submittedCount: latestByPlayer.size,
       totalPlayers: PLAYERS.length,
-      predictions: PLAYERS.map(name => {
+      predictions: PLAYERS.filter(name => latestByPlayer.has(name)).map(name => {
         const submission = latestByPlayer.get(name);
         return {
           player: name,
