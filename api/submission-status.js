@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto';
 import { get, list } from '@vercel/blob';
 import { roundConfig, submissionPrefix } from '../lib/round-config.js';
 import { resolvePlayer } from '../lib/player-aliases.js';
@@ -12,8 +13,28 @@ async function readJson(pathname) {
   return JSON.parse(await new Response(result.stream).text());
 }
 
+function suppliedToken(req) {
+  const auth = String(req.headers?.authorization || '');
+  if (auth.startsWith('Bearer ')) return auth.slice(7).trim();
+  return String(req.headers?.['x-organizer-token'] || '').trim();
+}
+
+function authorised(req) {
+  const expected = String(process.env.ORGANIZER_TOKEN || '');
+  const supplied = suppliedToken(req);
+  if (!expected || !supplied) return false;
+  const a = Buffer.from(expected);
+  const b = Buffer.from(supplied);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
 export default async function handler(req, res) {
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Vary', 'Authorization');
+
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+  if (!process.env.ORGANIZER_TOKEN) return res.status(503).json({ error: 'Organiser access has not been configured yet.' });
+  if (!authorised(req)) return res.status(401).json({ error: 'Invalid organiser access code.' });
 
   try {
     const latestByPlayer = new Map();
@@ -43,10 +64,17 @@ export default async function handler(req, res) {
       cursor = page.hasMore ? page.cursor : undefined;
     } while (cursor);
 
-    const submitted = PLAYERS.filter(name => latestByPlayer.has(name));
-    const missing = PLAYERS.filter(name => !latestByPlayer.has(name));
+    const players = PLAYERS.map(name => {
+      const submission = latestByPlayer.get(name);
+      return {
+        name,
+        submitted: Boolean(submission),
+        receivedAt: submission?.receivedAt || null
+      };
+    });
+    const submitted = players.filter(p => p.submitted).map(p => p.name);
+    const missing = players.filter(p => !p.submitted).map(p => p.name);
 
-    res.setHeader('Cache-Control', 'no-store');
     return res.status(200).json({
       season: roundConfig.season,
       round: roundConfig.round,
@@ -54,6 +82,7 @@ export default async function handler(req, res) {
       deadlineDisplay: roundConfig.firstKickoffDisplay,
       totalPlayers: PLAYERS.length,
       submittedCount: submitted.length,
+      players,
       submitted,
       missing,
       allSubmitted: missing.length === 0,
