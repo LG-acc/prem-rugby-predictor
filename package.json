@@ -1,0 +1,8 @@
+{
+  "name": "prem-rugby-predictor",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@vercel/blob": "^2.3.0"
+  }
+}
