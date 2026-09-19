@@ -1,15 +1,21 @@
 import { get, list } from '@vercel/blob';
 import { roundConfig, submissionPrefix } from '../lib/round-config.js';
 import { results } from '../lib/results.js';
+import { seasonState } from '../lib/season-state.js';
 
-const BASE_STANDINGS = {
-  Luke:{points:0,roundsWon:0,correctWinners:0,awayWinners:0,totalPointsDifference:0},
-  Jo:{points:0,roundsWon:0,correctWinners:0,awayWinners:0,totalPointsDifference:0},
-  Steve:{points:0,roundsWon:0,correctWinners:0,awayWinners:0,totalPointsDifference:0},
-  Deb:{points:0,roundsWon:0,correctWinners:0,awayWinners:0,totalPointsDifference:0},
-  Cas:{points:0,roundsWon:0,correctWinners:0,awayWinners:0,totalPointsDifference:0},
-  Ash:{points:0,roundsWon:0,correctWinners:0,awayWinners:0,totalPointsDifference:0}
-};
+function blankStats(){
+  return {
+    predictionsMade:0,
+    correctWinners:0,
+    perfectPicks:0,
+    awayWinners:0,
+    totalMarginDifference:0,
+    basePoints:0,
+    roundsWon:0,
+    bonusPoints:0,
+    totalPoints:0
+  };
+}
 
 async function readJson(pathname) {
   const result = await get(pathname, { access: 'private' });
@@ -37,17 +43,24 @@ function actualFor(game) {
 
 function predictedSignedMargin(pick, fixture) {
   if (pick.winner === 'Draw') return 0;
-  if (pick.winner === fixture.home) return pick.margin;
-  if (pick.winner === fixture.away) return -pick.margin;
+  if (pick.winner === fixture.home) return Number(pick.margin);
+  if (pick.winner === fixture.away) return -Number(pick.margin);
   return null;
 }
 
 function matchPoints(pick, actual) {
   if (pick.winner !== actual.winner) return 0;
   if (actual.winner === 'Draw') return 25;
-  const err = Math.abs(pick.margin - actual.margin);
+  const err = Math.abs(Number(pick.margin) - actual.margin);
   if (err === 0) return 25;
   return Math.max(10, 20 - err);
+}
+
+function addStats(a,b){
+  const out = blankStats();
+  for(const key of Object.keys(out)) out[key] = Number(a?.[key] || 0) + Number(b?.[key] || 0);
+  out.totalPoints = out.basePoints + out.bonusPoints;
+  return out;
 }
 
 export default async function handler(req,res){
@@ -69,64 +82,79 @@ export default async function handler(req,res){
       cursor = page.hasMore ? page.cursor : undefined;
     }while(cursor);
 
-    const completedGames = results.games.filter(r=>r.homeScore!=null && r.awayScore!=null).map(r=>r.game);
-    const roundScores = [];
+    const completedGames = results.games
+      .filter(r=>r.homeScore!=null && r.awayScore!=null)
+      .map(r=>r.game);
+    const roundComplete = completedGames.length === roundConfig.fixtures.length;
+    const roundRows = [];
 
     for(const name of roundConfig.players){
-      const row = {...BASE_STANDINGS[name]};
       const s = latest.get(name);
-      let roundPoints = 0;
-      let roundCorrect = 0;
-      let roundAway = 0;
-      let roundDiff = 0;
-      let allFiveCorrect = completedGames.length === roundConfig.fixtures.length;
+      const stats = blankStats();
+      let allFiveCorrect = roundComplete && Boolean(s);
 
       if(s){
         for(const game of completedGames){
           const actual = actualFor(game);
           const pick = s.picks.find(p=>p.game===game);
           const fixture = roundConfig.fixtures.find(f=>f.game===game);
-          if(!actual || !pick || !fixture){ allFiveCorrect=false; continue; }
-          roundPoints += matchPoints(pick,actual);
+          if(!actual || !pick || !fixture){
+            allFiveCorrect = false;
+            continue;
+          }
+
+          stats.predictionsMade += 1;
+          stats.basePoints += matchPoints(pick,actual);
+
           const correct = pick.winner === actual.winner;
           if(correct){
-            roundCorrect += 1;
-            if(actual.awayWon) roundAway += 1;
-          } else {
+            stats.correctWinners += 1;
+            if(actual.awayWon) stats.awayWinners += 1;
+            if(Number(pick.margin) === actual.margin) stats.perfectPicks += 1;
+          }else{
             allFiveCorrect = false;
           }
+
           const signedPred = predictedSignedMargin(pick,fixture);
-          if(signedPred != null) roundDiff += Math.abs(signedPred - actual.signedMargin);
+          if(signedPred != null) stats.totalMarginDifference += Math.abs(signedPred - actual.signedMargin);
         }
-      } else {
+      }else{
         allFiveCorrect = false;
       }
 
-      if(allFiveCorrect) roundPoints += 5;
-      row.points += roundPoints;
-      row.correctWinners += roundCorrect;
-      row.awayWinners += roundAway;
-      row.totalPointsDifference += roundDiff;
-      roundScores.push({name,roundPoints,row,hasSubmission:Boolean(s)});
+      // +5 stays in Base Points: it is the bonus for predicting all five winners correctly.
+      if(allFiveCorrect) stats.basePoints += 5;
+      stats.totalPoints = stats.basePoints;
+
+      roundRows.push({name,...stats,hasSubmission:Boolean(s)});
     }
 
-    const roundComplete = completedGames.length === roundConfig.fixtures.length;
     let roundWinnerStatus = 'pending';
     let roundWinners = [];
     if(roundComplete){
-      const max = Math.max(...roundScores.map(x=>x.roundPoints));
-      roundWinners = roundScores.filter(x=>x.roundPoints===max).map(x=>x.name);
+      const max = Math.max(...roundRows.map(x=>x.basePoints));
+      roundWinners = roundRows.filter(x=>x.basePoints===max).map(x=>x.name);
       if(roundWinners.length===1){
-        const winner = roundScores.find(x=>x.name===roundWinners[0]);
-        winner.row.points += 10;
-        winner.row.roundsWon += 1;
+        const winner = roundRows.find(x=>x.name===roundWinners[0]);
+        winner.roundsWon = 1;
+        winner.bonusPoints = 10;
+        winner.totalPoints = winner.basePoints + winner.bonusPoints;
         roundWinnerStatus = 'awarded';
       }else{
         roundWinnerStatus = 'tie-needs-rule';
       }
     }
 
-    const players = roundScores.map(x=>({name:x.name,...x.row,roundPoints:x.roundPoints}));
+    const overallPlayers = roundRows.map(roundRow=>{
+      const prior = seasonState.players?.[roundRow.name] || blankStats();
+      const combined = addStats(prior,roundRow);
+      return {name:roundRow.name,...combined};
+    });
+
+    const latestCompletedRound = roundComplete
+      ? {round:roundConfig.round,players:roundRows.map(({hasSubmission,...p})=>p)}
+      : seasonState.latestCompletedRound;
+
     res.setHeader('Cache-Control','no-store');
     return res.status(200).json({
       season:roundConfig.season,
@@ -135,7 +163,9 @@ export default async function handler(req,res){
       roundComplete,
       roundWinnerStatus,
       roundWinners,
-      players
+      players:overallPlayers,
+      currentRoundPlayers:roundRows,
+      latestCompletedRound
     });
   }catch(error){
     console.error('Standings API error',error);
