@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>PREM Predictor 2026/27 – Leaderboard</title>
 <style>
-body{font-family:Arial,Helvetica,sans-serif;background:#f4f6f8;color:#213547;margin:0;padding:24px}.wrap{max-width:950px;margin:auto}h1{text-align:center;color:#0f355e;margin-bottom:6px}.sub{text-align:center;color:#667085;margin:0 0 22px}.card{background:#fff;border:1px solid #e3e7ec;border-radius:14px;box-shadow:0 2px 8px rgba(16,24,40,.06);overflow:hidden}table{width:100%;border-collapse:collapse}th,td{padding:13px 12px;border-bottom:1px solid #edf0f3;text-align:center}th{background:#0f355e;color:#fff;font-size:13px}td:first-child,th:first-child{text-align:left}.rank{font-weight:700;color:#667085}.name{font-weight:700}.points{font-weight:800;color:#0f355e}.foot{margin-top:14px;font-size:12px;color:#667085;line-height:1.5}.nav{text-align:center;margin-top:18px}.nav a{display:inline-block;text-decoration:none;background:#1469c9;color:#fff;padding:10px 14px;border-radius:9px;font-weight:700}@media(max-width:700px){body{padding:12px}.card{overflow-x:auto}table{min-width:760px}th,td{padding:11px 9px;font-size:13px}}
+body{font-family:Arial,Helvetica,sans-serif;background:#f4f6f8;color:#213547;margin:0;padding:24px}.wrap{max-width:950px;margin:auto}h1{text-align:center;color:#0f355e;margin-bottom:6px}.sub{text-align:center;color:#667085;margin:0 0 22px}.card{background:#fff;border:1px solid #e3e7ec;border-radius:14px;box-shadow:0 2px 8px rgba(16,24,40,.06);overflow:hidden}table{width:100%;border-collapse:collapse}th,td{padding:13px 12px;border-bottom:1px solid #edf0f3;text-align:center}th{background:#0f355e;color:#fff;font-size:13px}td:first-child,th:first-child{text-align:left}.rank{font-weight:700;color:#667085}.name{font-weight:700}.points{font-weight:800;color:#0f355e}.foot{margin-top:14px;font-size:12px;color:#667085;line-height:1.5}.nav{text-align:center;margin-top:18px}.nav a{display:inline-block;text-decoration:none;background:#1469c9;color:#fff;padding:10px 14px;border-radius:9px;font-weight:700;margin:4px}@media(max-width:700px){body{padding:12px}.card{overflow-x:auto}table{min-width:760px}th,td{padding:11px 9px;font-size:13px}}
 </style>
 </head>
 <body>
@@ -19,14 +19,19 @@ body{font-family:Arial,Helvetica,sans-serif;background:#f4f6f8;color:#213547;mar
 </table>
 </div>
 <p class="foot">Tiebreak order: most rounds won → most matches correctly predicted → most correct away-team winners → lowest total points difference.</p>
-<div class="nav"><a href="/">Make predictions</a></div>
+<div class="nav"><a href="/">Make predictions</a><a href="/predictions.html">View predictions</a></div>
 </main>
 <script>
-function sortPlayers(a,b){return b.points-a.points||b.roundsWon-a.roundsWon||b.correctWinners-a.correctWinners||b.awayWinners-a.awayWinners||a.marginError-b.marginError||a.name.localeCompare(b.name)}
-fetch('/standings.json?ts='+Date.now()).then(r=>r.json()).then(data=>{
- document.getElementById('updated').textContent='Leaderboard • '+data.updated;
+function sortPlayers(a,b){return b.points-a.points||b.roundsWon-a.roundsWon||b.correctWinners-a.correctWinners||b.awayWinners-a.awayWinners||a.totalPointsDifference-b.totalPointsDifference||a.name.localeCompare(b.name)}
+fetch('/api/standings?ts='+Date.now()).then(r=>r.json()).then(data=>{
+ if(data.error) throw new Error(data.error);
+ const status=data.roundComplete?'Round '+data.round+' complete':`${data.completedGames.length} of 5 Round ${data.round} results entered`;
+ document.getElementById('updated').textContent='Leaderboard • '+status;
  const players=[...data.players].sort(sortPlayers);
- document.getElementById('rows').innerHTML=players.map((p,i)=>`<tr><td class="rank">${i+1}</td><td class="name">${p.name}</td><td class="points">${p.points}</td><td>${p.roundsWon}</td><td>${p.correctWinners}</td><td>${p.awayWinners}</td><td>${p.marginError}</td></tr>`).join('');
+ document.getElementById('rows').innerHTML=players.map((p,i)=>`<tr><td class="rank">${i+1}</td><td class="name">${p.name}</td><td class="points">${p.points}</td><td>${p.roundsWon}</td><td>${p.correctWinners}</td><td>${p.awayWinners}</td><td>${p.totalPointsDifference}</td></tr>`).join('');
+ if(data.roundWinnerStatus==='tie-needs-rule'){
+   document.getElementById('updated').textContent += ' • round-winner bonus pending tie rule';
+ }
 }).catch(()=>{document.getElementById('rows').innerHTML='<tr><td colspan="7">Standings unavailable.</td></tr>'});
 </script>
 </body>
