@@ -1,22 +1,11 @@
 import { put } from '@vercel/blob';
 import { roundConfig, submissionPrefix } from '../lib/round-config.js';
+import { resolvePlayer } from '../lib/player-aliases.js';
 
 const ROUND = roundConfig.round;
 const DEADLINE = new Date(roundConfig.firstKickoff);
 const FORMSPREE_URL = 'https://formspree.io/f/mwpngaee';
 
-const aliases = new Map([
-  ['luke', 'Luke'], ['luke g', 'Luke'],
-  ['jo', 'Jo'], ['joanne', 'Jo'], ['jo g', 'Jo'], ['joanne goscomb', 'Jo'], ['jo goscomb', 'Jo'],
-  ['steve', 'Steve'], ['steven', 'Steve'], ['biv', 'Steve'], ['bivo', 'Steve'], ['steve g', 'Steve'], ['steven goscomb', 'Steve'], ['steve goscomb', 'Steve'],
-  ['deb', 'Deb'], ['debbie', 'Deb'], ['deborah', 'Deb'], ['debbie caswell', 'Deb'], ['deborah caswell', 'Deb'],
-  ['cas', 'Cas'], ['gary', 'Cas'],
-  ['ash', 'Ash'], ['ashley', 'Ash'],
-]);
-
-function normaliseName(value = '') {
-  return String(value).trim().replace(/\s+/g, ' ').toLowerCase();
-}
 function clean(value) { return String(value ?? '').trim(); }
 function escapeHtml(value) { return String(value).replace(/[&<>'\"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[ch])); }
 function htmlPage(title, message, ok = true) {
@@ -40,7 +29,7 @@ export default async function handler(req, res) {
 
     const body = req.body || {};
     const enteredName = clean(body['Player Name']);
-    const canonicalName = aliases.get(normaliseName(enteredName)) || null;
+    const canonicalName = resolvePlayer(enteredName);
     const picks = [];
 
     for (const fixture of roundConfig.fixtures) {
