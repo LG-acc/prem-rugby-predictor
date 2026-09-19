@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PREM Predictor 2026/27 – Past Rounds</title>
+<style>
+body{font-family:Arial,Helvetica,sans-serif;background:#f4f6f8;color:#213547;margin:0;padding:24px}.wrap{max-width:900px;margin:auto}h1{text-align:center;color:#0f355e;margin-bottom:6px}.sub{text-align:center;color:#667085;margin:0 0 22px}.card{background:#fff;border:1px solid #e3e7ec;border-radius:14px;box-shadow:0 2px 8px rgba(16,24,40,.06);padding:18px;margin-bottom:14px}.round-title{font-size:18px;font-weight:800;color:#0f355e;margin-bottom:8px}.meta{font-size:13px;color:#667085;margin-bottom:10px}.btn{display:inline-block;text-decoration:none;background:#1469c9;color:#fff;padding:10px 14px;border-radius:9px;font-weight:700}.nav{text-align:center;margin-top:20px}.nav a{display:inline-block;text-decoration:none;background:#0f355e;color:#fff;padding:10px 14px;border-radius:9px;font-weight:700;margin:4px}.empty{text-align:center;color:#667085;padding:30px}@media(max-width:640px){body{padding:14px}}
+</style>
+</head>
+<body>
+<main class="wrap">
+<h1>PREM Predictor 2026/27</h1>
+<p class="sub">Past rounds</p>
+<div id="list" class="empty">Loading archive…</div>
+<div class="nav"><a href="/">Current round</a><a href="/leaderboard.html">Leaderboard</a></div>
+</main>
+<script>
+fetch('/rounds/index.json?ts='+Date.now()).then(r=>r.json()).then(data=>{
+ const el=document.getElementById('list');
+ if(!data.rounds || data.rounds.length===0){el.className='empty';el.textContent='No completed rounds have been archived yet.';return;}
+ el.className='';
+ el.innerHTML=data.rounds.slice().sort((a,b)=>b.round-a.round).map(r=>`<section class="card"><div class="round-title">Round ${r.round}</div><div class="meta">${r.completedAt?`Completed ${r.completedAt}`:'Completed round'}</div><a class="btn" href="${r.url}">View round</a></section>`).join('');
+}).catch(()=>{document.getElementById('list').textContent='Archive unavailable.'});
+</script>
+</body>
+</html>
