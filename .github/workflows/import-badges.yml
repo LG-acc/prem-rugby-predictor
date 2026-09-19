@@ -1,0 +1,72 @@
+name: Import approved Premiership badges
+
+on:
+  push:
+    paths:
+      - '.github/workflows/import-badges.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  import-badges:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out predictor
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download approved club badges
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p badges
+          base='https://raw.githubusercontent.com/pedrocn01/rugby-score/main/assets/logos'
+          curl -fL "$base/pre_harlequins.png" -o badges/harlequins.png
+          curl -fL "$base/pre_bath.png" -o badges/bath.png
+          curl -fL "$base/pre_northampton.png" -o badges/saints.png
+          curl -fL "$base/pre_newcastle.png" -o badges/newcastle.png
+          curl -fL "$base/pre_exeter.png" -o badges/exeter.png
+          curl -fL "$base/pre_gloucester.png" -o badges/gloucester.png
+          curl -fL "$base/pre_sale.png" -o badges/sale.png
+          curl -fL "$base/pre_bristol.png" -o badges/bristol.png
+          curl -fL "$base/pre_leicester.png" -o badges/leicester.png
+          curl -fL "$base/pre_saracens.png" -o badges/saracens.png
+          test "$(find badges -maxdepth 1 -type f -name '*.png' | wc -l)" -eq 10
+          for f in badges/*.png; do test -s "$f"; done
+
+      - name: Point current round at local badges
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('lib/round-config.js')
+          s = p.read_text()
+          replacements = {
+            'https://202526-prem-r16.netlify.app/images/harlequins.png': '/badges/harlequins.png',
+            'https://202526-prem-r16.netlify.app/images/bath.png': '/badges/bath.png',
+            'https://202526-prem-r16.netlify.app/images/saints.png': '/badges/saints.png',
+            'https://202526-prem-r16.netlify.app/images/newcastle.png': '/badges/newcastle.png',
+            'https://202526-prem-r16.netlify.app/images/exeter.png': '/badges/exeter.png',
+            'https://202526-prem-r16.netlify.app/images/gloucester.png': '/badges/gloucester.png',
+            'https://202526-prem-r16.netlify.app/images/sale.png': '/badges/sale.png',
+            'https://202526-prem-r16.netlify.app/images/bristol.png': '/badges/bristol.png',
+            'https://202526-prem-r16.netlify.app/images/leicester.png': '/badges/leicester.png',
+            'https://202526-prem-r16.netlify.app/images/saracens.png': '/badges/saracens.png',
+          }
+          for old, new in replacements.items():
+              if old not in s:
+                  raise SystemExit(f'Missing expected badge URL: {old}')
+              s = s.replace(old, new)
+          p.write_text(s)
+
+      - name: Commit badges and remove one-time importer
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          rm .github/workflows/import-badges.yml
+          git add badges lib/round-config.js .github/workflows/import-badges.yml
+          git commit -m 'Store Premiership club badges locally'
+          git push
