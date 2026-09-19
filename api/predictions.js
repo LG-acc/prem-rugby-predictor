@@ -1,5 +1,6 @@
 import { get, list } from '@vercel/blob';
 import { roundConfig, submissionPrefix } from '../lib/round-config.js';
+import { results } from '../lib/results.js';
 
 const PLAYERS = roundConfig.players;
 const DEADLINE = new Date(roundConfig.firstKickoff);
@@ -10,6 +11,27 @@ async function readJson(pathname) {
   if (!result || result.statusCode !== 200 || !result.stream) return null;
   const text = await new Response(result.stream).text();
   return JSON.parse(text);
+}
+
+function resultFor(game) {
+  const fixture = roundConfig.fixtures.find(f => f.game === game);
+  const r = results.games.find(x => x.game === game);
+  if (!fixture || !r || r.homeScore == null || r.awayScore == null) return null;
+  const diff = Number(r.homeScore) - Number(r.awayScore);
+  return {
+    homeScore: Number(r.homeScore),
+    awayScore: Number(r.awayScore),
+    winner: diff === 0 ? 'Draw' : diff > 0 ? fixture.home : fixture.away,
+    margin: Math.abs(diff)
+  };
+}
+
+function matchPoints(pick, actual) {
+  if (!pick || !actual || pick.winner !== actual.winner) return 0;
+  if (actual.winner === 'Draw') return 25;
+  const err = Math.abs(Number(pick.margin) - actual.margin);
+  if (err === 0) return 25;
+  return Math.max(10, 20 - err);
 }
 
 export default async function handler(req, res) {
@@ -24,6 +46,21 @@ export default async function handler(req, res) {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store');
 
+    const fixturePayload = roundConfig.fixtures.map(f => {
+      const actual = resultFor(f.game);
+      return {
+        game: f.game,
+        home: f.home,
+        away: f.away,
+        kickoff: f.kickoff,
+        homeBadge: f.homeBadge,
+        awayBadge: f.awayBadge,
+        completed: Boolean(actual),
+        homeScore: actual?.homeScore ?? null,
+        awayScore: actual?.awayScore ?? null
+      };
+    });
+
     if (now < DEADLINE) {
       return res.status(200).json({
         season: roundConfig.season,
@@ -31,7 +68,8 @@ export default async function handler(req, res) {
         locked: true,
         revealAt: roundConfig.firstKickoff,
         revealAtDisplay: roundConfig.firstKickoffDisplay,
-        fixtures: roundConfig.fixtures.map(f => ({ game: f.game, home: f.home, away: f.away })),
+        fixtures: fixturePayload,
+        players: PLAYERS,
         message: 'Predictions will be revealed when the first fixture kicks off.'
       });
     }
@@ -56,6 +94,65 @@ export default async function handler(req, res) {
       cursor = page.hasMore ? page.cursor : undefined;
     } while (cursor);
 
+    const completedGames = fixturePayload.filter(f => f.completed).map(f => f.game);
+    const roundComplete = completedGames.length === roundConfig.fixtures.length;
+
+    const playerRows = PLAYERS.map(name => {
+      const submission = latestByPlayer.get(name);
+      const picks = roundConfig.fixtures.map(fixture => {
+        const pick = submission?.picks?.find(p => p.game === fixture.game) || null;
+        const actual = resultFor(fixture.game);
+        return {
+          game: fixture.game,
+          winner: pick?.winner ?? null,
+          margin: pick?.margin ?? null,
+          points: !submission ? 0 : actual ? matchPoints(pick, actual) : null
+        };
+      });
+
+      const allFiveCorrect = roundComplete && Boolean(submission) && picks.every(p => {
+        const actual = resultFor(p.game);
+        return actual && p.winner === actual.winner;
+      });
+
+      const matchTotal = picks.reduce((sum, p) => sum + (Number.isFinite(Number(p.points)) && p.points != null ? Number(p.points) : 0), 0);
+      const allFiveBonus = allFiveCorrect ? 5 : 0;
+      const basePoints = matchTotal + allFiveBonus;
+
+      return {
+        player: name,
+        submitted: Boolean(submission),
+        receivedAt: submission?.receivedAt ?? null,
+        picks,
+        matchTotal,
+        allFiveBonus,
+        basePoints,
+        roundWinnerBonus: 0,
+        totalPoints: basePoints
+      };
+    });
+
+    let roundWinnerStatus = 'pending';
+    let roundWinners = [];
+    if (roundComplete) {
+      const max = Math.max(...playerRows.map(p => p.basePoints));
+      roundWinners = playerRows.filter(p => p.basePoints === max).map(p => p.player);
+      if (roundWinners.length === 1) {
+        const winner = playerRows.find(p => p.player === roundWinners[0]);
+        winner.roundWinnerBonus = 10;
+        winner.totalPoints += 10;
+        roundWinnerStatus = 'awarded';
+      } else {
+        roundWinnerStatus = 'tie-needs-rule';
+      }
+    }
+
+    const bonuses = [];
+    for (const p of playerRows) {
+      if (p.allFiveBonus) bonuses.push({ player: p.player, type: 'All 5 winners correct', points: 5 });
+      if (p.roundWinnerBonus) bonuses.push({ player: p.player, type: 'Round winner', points: 10 });
+    }
+
     return res.status(200).json({
       season: roundConfig.season,
       round: roundConfig.round,
@@ -64,15 +161,14 @@ export default async function handler(req, res) {
       revealAtDisplay: roundConfig.firstKickoffDisplay,
       submittedCount: latestByPlayer.size,
       totalPlayers: PLAYERS.length,
-      fixtures: roundConfig.fixtures.map(f => ({ game: f.game, home: f.home, away: f.away })),
-      predictions: PLAYERS.filter(name => latestByPlayer.has(name)).map(name => {
-        const submission = latestByPlayer.get(name);
-        return {
-          player: name,
-          receivedAt: submission.receivedAt,
-          picks: submission.picks.map(p => ({ game: p.game, winner: p.winner, margin: p.margin }))
-        };
-      })
+      players: PLAYERS,
+      fixtures: fixturePayload,
+      predictions: playerRows,
+      bonuses,
+      completedGames,
+      roundComplete,
+      roundWinnerStatus,
+      roundWinners
     });
   } catch (error) {
     console.error('Predictions API error', error);
