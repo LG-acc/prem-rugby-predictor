@@ -1,0 +1,12 @@
+{
+  "season": "2026/27",
+  "updated": "Pre-season",
+  "players": [
+    {"name":"Luke","points":0,"roundsWon":0,"correctWinners":0,"awayWinners":0,"marginError":0},
+    {"name":"Jo","points":0,"roundsWon":0,"correctWinners":0,"awayWinners":0,"marginError":0},
+    {"name":"Steve","points":0,"roundsWon":0,"correctWinners":0,"awayWinners":0,"marginError":0},
+    {"name":"Deb","points":0,"roundsWon":0,"correctWinners":0,"awayWinners":0,"marginError":0},
+    {"name":"Cas","points":0,"roundsWon":0,"correctWinners":0,"awayWinners":0,"marginError":0},
+    {"name":"Ash","points":0,"roundsWon":0,"correctWinners":0,"awayWinners":0,"marginError":0}
+  ]
+}
