@@ -21,10 +21,10 @@ export default async function handler(req, res) {
 
   try {
     const receivedAt = new Date();
-    if (receivedAt >= DEADLINE) {
+    if (roundConfig.submissionsClosed || receivedAt >= DEADLINE) {
       res.statusCode = 403;
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      return res.end(htmlPage(`Round ${ROUND} is closed`, 'The prediction deadline has passed. No new or revised predictions can be accepted after the first fixture kicks off.', false));
+      return res.end(htmlPage(`Round ${ROUND} is closed`, 'Predictions are now locked for this round. No new or revised predictions can be accepted.', false));
     }
 
     const body = req.body || {};
