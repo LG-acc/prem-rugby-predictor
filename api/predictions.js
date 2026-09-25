@@ -72,7 +72,7 @@ export default async function handler(req, res) {
       };
     });
 
-    if (now < DEADLINE) {
+    if (!roundConfig.predictionsVisible && now < DEADLINE) {
       return res.status(200).json({
         season: roundConfig.season,
         round: roundConfig.round,
