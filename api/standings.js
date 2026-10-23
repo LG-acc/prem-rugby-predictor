@@ -191,7 +191,7 @@ export default async function handler(req,res){
     const overallPlayers = roundConfig.players.map(name=>{
       const prior = archivedTotals(archived,name);
       const current = roundRows.find(r=>r.name===name) || blankStats();
-      const combined = currentAlreadyArchived ? prior : addStats(prior,current);
+      const combined = currentAlreadyArchived || !roundComplete ? prior : addStats(prior,current);
       return {name,...combined};
     });
 
