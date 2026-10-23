@@ -120,13 +120,17 @@ fetch('/api/standings?ts='+Date.now()).then(r=>r.json()).then(data=>{
    }
  }
 
- const latest=data.latestCompletedRound;
- if(latest && Array.isArray(latest.players)){
-   document.getElementById('roundTitle').textContent=`Round ${latest.round} Leaderboard`;
-   document.getElementById('roundSubtitle').textContent='Most recently completed round';
+ const currentInProgress=!data.roundComplete && Array.isArray(data.completedGames) && data.completedGames.length>0;
+ const roundView=currentInProgress
+   ? {round:data.round,players:data.currentRoundPlayers,subtitle:`${data.completedGames.length} of 5 results entered • live round standings`}
+   : (data.latestCompletedRound ? {...data.latestCompletedRound,subtitle:'Most recently completed round'} : null);
+
+ if(roundView && Array.isArray(roundView.players)){
+   document.getElementById('roundTitle').textContent=`Round ${roundView.round} Leaderboard`;
+   document.getElementById('roundSubtitle').textContent=roundView.subtitle;
    document.getElementById('roundEmpty').style.display='none';
    document.getElementById('roundTable').style.display='table';
-   document.getElementById('roundRows').innerHTML=[...latest.players].sort(sortPlayers).map(rowHtml).join('');
+   document.getElementById('roundRows').innerHTML=[...roundView.players].sort(sortPlayers).map(rowHtml).join('');
  }else{
    document.getElementById('roundTitle').textContent='Latest Completed Round';
    document.getElementById('roundSubtitle').textContent='';
